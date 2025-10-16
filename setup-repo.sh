@@ -19,12 +19,6 @@ check_tool "node"
 check_tool "npm"
 check_tool "git"
 
-# Install global dependencies if not present
-echo "Installing global dependencies..."
-npm list -g @expo/cli &> /dev/null || npm install -g @expo/cli
-npm list -g eas-cli &> /dev/null || npm install -g eas-cli
-npm list -g firebase-tools &> /dev/null || npm install -g firebase-tools
-
 # Install project dependencies
 echo "Installing project dependencies..."
 npm install
@@ -47,12 +41,12 @@ echo "1. Create a GitHub repository and push your code:"
 echo "   gh repo create your-username/courtside-mobile-app --public --push"
 echo ""
 echo "2. Set up Expo project:"
-echo "   expo login"
-echo "   eas build:configure"
+echo "   npx expo login"
+echo "   npx eas build:configure"
 echo ""
 echo "3. Set up Firebase:"
-echo "   firebase login"
-echo "   firebase init"
+echo "   npx firebase login"
+echo "   npx firebase init"
 echo ""
 echo "4. Configure GitHub secrets in your repository settings:"
 echo "   - EXPO_TOKEN"
