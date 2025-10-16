@@ -217,6 +217,7 @@ describe('FirebaseService', () => {
         const updates = {
           name: 'Updated Tournament Name',
           city: 'Updated City',
+          updatedAt: Timestamp.now(),
         };
 
         await firebaseService.updateTournament('tournament-1', updates);
@@ -330,6 +331,7 @@ describe('FirebaseService', () => {
           scoreA: 100,
           scoreB: 95,
           status: GameStatus.COMPLETED,
+          updatedAt: Timestamp.now(),
         };
 
         await firebaseService.updateGame('game-1', updates);
@@ -474,7 +476,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((query, callback) => {
+        mockOnSnapshot.mockImplementation((query, callback: any) => {
           // Simulate calling the callback with mock data
           const mockQuerySnapshot = {
             docs: [
@@ -517,7 +519,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((docRef, callback) => {
+        mockOnSnapshot.mockImplementation((docRef, callback: any) => {
           // Simulate calling the callback with mock data
           const mockDocSnapshot = {
             exists: () => true,
@@ -559,7 +561,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((docRef, callback) => {
+        mockOnSnapshot.mockImplementation((docRef, callback: any) => {
           // Simulate calling the callback with non-existent document
           const mockDocSnapshot = {
             exists: () => false,

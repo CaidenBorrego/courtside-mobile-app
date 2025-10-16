@@ -3,13 +3,13 @@ name: Deploy Production
 on:
   push:
     branches: [master]
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
