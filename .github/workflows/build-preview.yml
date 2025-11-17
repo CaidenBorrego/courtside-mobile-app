@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
       - name: Build preview for iOS
         run: eas build --platform ios --profile preview --non-interactive
         env:

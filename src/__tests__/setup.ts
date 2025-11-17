@@ -93,6 +93,21 @@ jest.mock('expo-constants', () => ({
   },
 }));
 
+// Mock expo-router
+jest.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+  }),
+  useLocalSearchParams: () => ({}),
+  Link: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+// Mock Expo winter runtime to prevent import scope errors
+jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
+jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
+
 // Mock fetch for Firebase
 global.fetch = jest.fn();
 

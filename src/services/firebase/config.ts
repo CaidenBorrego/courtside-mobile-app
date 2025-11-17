@@ -1,8 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getMessaging, isSupported } from 'firebase/messaging';
-import { Platform } from 'react-native';
 
 // Firebase configuration for development
 const firebaseConfigDev = {

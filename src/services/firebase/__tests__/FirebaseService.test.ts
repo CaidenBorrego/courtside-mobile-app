@@ -20,8 +20,6 @@ import { FirebaseService } from '../FirebaseService';
 import {
   Tournament,
   Game,
-  Division,
-  Location,
   UserProfile,
   TournamentStatus,
   GameStatus,
