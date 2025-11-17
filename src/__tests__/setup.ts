@@ -46,6 +46,22 @@ jest.mock('expo-constants', () => ({
 // Mock fetch for Firebase
 global.fetch = jest.fn();
 
+// Mock Response for Firebase Auth
+global.Response = class Response {
+  constructor(public body: any, public init?: ResponseInit) {}
+  json() {
+    return Promise.resolve(JSON.parse(this.body));
+  }
+  text() {
+    return Promise.resolve(this.body);
+  }
+} as any;
+
+// Mock Request for Firebase Auth
+global.Request = class Request {
+  constructor(public url: string, public init?: RequestInit) {}
+} as any;
+
 // Silence console warnings during tests
 global.console = {
   ...console,
