@@ -1,7 +1,3 @@
-// Mock Expo winter runtime FIRST to prevent import scope errors
-jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
-jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
-
 // Mock Firebase Timestamp
 export const mockTimestamp = {
   fromDate: (date: Date) => ({

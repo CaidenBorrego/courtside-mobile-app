@@ -17,32 +17,44 @@
 - **TypeScript Errors:** 0
 - **Status:** All types valid
 
-### Build Preview: CONFIGURED ✅
+### Build Preview: MANUAL TRIGGER ⚙️
 - **EAS CLI:** Installed in workflow
 - **Bundle IDs:** Configured for iOS and Android
-- **Status:** Ready to build
+- **Trigger:** Manual only (workflow_dispatch) or PR with 'build-preview' label
+- **Status:** Requires EAS credentials setup (run interactively first)
 
 ## Critical Fixes Applied
 
 ### 1. Expo Winter Runtime Mock (CRITICAL)
-**File:** `src/__tests__/setup.ts`
+**Files:** `jest.setup.js` and `jest.config.js`
 
-The Expo winter runtime mocks MUST be at the very top of the file:
-```typescript
-// Mock Expo winter runtime FIRST to prevent import scope errors
+Created a separate setup file that runs BEFORE all other setup:
+
+**jest.setup.js:**
+```javascript
+// Mock Expo winter runtime to prevent import scope errors
 jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
 jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
 ```
 
-⚠️ **IMPORTANT:** If autofix or formatting moves these mocks, tests will fail. They must remain at the top!
+**jest.config.js:**
+```javascript
+setupFiles: ['<rootDir>/jest.setup.js'],  // Runs FIRST
+setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],  // Runs after
+```
+
+✅ **SOLUTION:** By using `setupFiles` instead of putting mocks in `setupFilesAfterEnv`, the mocks are applied before any test code runs, preventing the import scope error.
 
 ### 2. App Configuration
 **File:** `app.json`
 
-Added required bundle identifiers:
+Added required bundle identifiers and encryption flag:
 ```json
 "ios": {
-  "bundleIdentifier": "com.courtside.mobileapp"
+  "bundleIdentifier": "com.courtside.mobileapp",
+  "infoPlist": {
+    "ITSAppUsesNonExemptEncryption": false
+  }
 },
 "android": {
   "package": "com.courtside.mobileapp"
@@ -59,14 +71,23 @@ Added version source configuration:
 }
 ```
 
-### 4. GitHub Actions Workflow
+### 4. GitHub Actions Workflows
+
 **File:** `.github/workflows/build-preview.yml`
 
-Added EAS CLI installation:
+- Added EAS CLI installation
+- Changed to manual trigger only (workflow_dispatch)
+- Requires EAS credentials to be set up interactively first
+
 ```yaml
-- name: Install EAS CLI
-  run: npm install -g eas-cli
+on:
+  workflow_dispatch:  # Manual trigger only
+  pull_request:
+    branches: [main]
+    types: [labeled]  # Only when PR has 'build-preview' label
 ```
+
+**Note:** EAS builds require credentials that must be set up interactively. Run `eas build` locally first to configure credentials.
 
 ## Running CI Checks Locally
 
@@ -159,3 +180,43 @@ With CI passing, you can now:
 - Monitor for Expo SDK updates that may affect testing
 - Review and address non-blocking warnings periodically
 - Update bundle identifiers if app name changes
+
+
+## Files Modified
+
+1. **jest.setup.js** - NEW: Expo winter runtime mocks (runs before all tests)
+2. **jest.config.js** - Added setupFiles configuration
+3. **src/__tests__/setup.ts** - Removed Expo mocks (now in jest.setup.js)
+4. **.github/workflows/build-preview.yml** - Changed to manual trigger, added EAS CLI
+5. **app.json** - Added iOS bundleIdentifier, Android package, and encryption flag
+6. **eas.json** - Added appVersionSource configuration
+7. **src/services/firebase/config.ts** - Removed unused imports
+8. **src/services/firebase/__tests__/FirebaseService.test.ts** - Removed unused type imports
+
+## Setting Up EAS Builds
+
+Before the build preview workflow can run successfully, you need to set up EAS credentials:
+
+```bash
+# Install EAS CLI globally
+npm install -g eas-cli
+
+# Login to your Expo account
+eas login
+
+# Configure credentials interactively
+eas build --platform ios --profile preview
+
+# Follow the prompts to set up signing credentials
+```
+
+After credentials are configured, the GitHub Actions workflow can build using those credentials.
+
+## Summary
+
+✅ **CI Tests:** Fully passing (127 tests)
+✅ **Linting:** Clean (no errors)
+✅ **Type Check:** Clean (no errors)
+⚙️ **Builds:** Manual trigger only (requires credential setup)
+
+The main CI workflow (tests, lint, type check) will now pass on every push and PR!

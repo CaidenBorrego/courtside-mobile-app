@@ -1,10 +1,10 @@
 name: Build Preview
 
 on:
-  push:
-    branches: [develop]
+  workflow_dispatch:  # Manual trigger only
   pull_request:
     branches: [main]
+    types: [labeled]  # Only when labeled
 
 jobs:
   build-preview:
