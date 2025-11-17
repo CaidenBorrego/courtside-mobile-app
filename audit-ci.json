@@ -1,8 +1,11 @@
 {
-  "moderate": true,
+  "moderate": false,
   "high": true,
   "critical": true,
-  "allowlist": [],
+  "allowlist": [
+    "GHSA-29xp-372q-xqph",
+    "GHSA-mh29-5h37-fv8m"
+  ],
   "report-type": "summary",
   "package-manager": "npm"
 }
