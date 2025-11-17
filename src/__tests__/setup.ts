@@ -1,3 +1,7 @@
+// Mock Expo winter runtime FIRST to prevent import scope errors
+jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
+jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
+
 // Mock Firebase Timestamp
 export const mockTimestamp = {
   fromDate: (date: Date) => ({
@@ -103,10 +107,6 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   Link: ({ children }: { children: React.ReactNode }) => children,
 }));
-
-// Mock Expo winter runtime to prevent import scope errors
-jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
-jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
 
 // Mock fetch for Firebase
 global.fetch = jest.fn();

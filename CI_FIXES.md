@@ -16,12 +16,14 @@ at require (node_modules/expo/src/winter/runtime.native.ts:20:43)
 Expo 54's new "winter" runtime was trying to import files outside the Jest test scope, causing all tests to fail.
 
 **Solution:**
-Added virtual mocks for Expo's winter runtime modules in `src/__tests__/setup.ts`:
+Added virtual mocks for Expo's winter runtime modules **at the very top** of `src/__tests__/setup.ts` (before any other code):
 ```typescript
-// Mock Expo winter runtime to prevent import scope errors
+// Mock Expo winter runtime FIRST to prevent import scope errors
 jest.mock('expo/src/winter/runtime.native.ts', () => ({}), { virtual: true });
 jest.mock('expo/src/winter/installGlobal.ts', () => ({}), { virtual: true });
 ```
+
+**Important:** These mocks MUST be at the top of the file before any other code or exports. The order matters!
 
 **Result:**
 - All 11 test suites now pass (127 tests total)
@@ -50,7 +52,48 @@ Added EAS CLI installation step in `.github/workflows/build-preview.yml`:
 - EAS CLI will now be available for build commands
 - Preview builds for iOS and Android can proceed
 
-### 3. ESLint Warnings Cleanup
+### 3. Missing iOS Bundle Identifier
+
+**Problem:**
+EAS build was failing with:
+```
+The "ios.bundleIdentifier" is required to be set in app config when running in non-interactive mode.
+```
+
+**Solution:**
+Added bundle identifiers to `app.json`:
+```json
+"ios": {
+  "supportsTablet": true,
+  "bundleIdentifier": "com.courtside.mobileapp"
+},
+"android": {
+  "package": "com.courtside.mobileapp",
+  ...
+}
+```
+
+**Result:**
+- iOS and Android builds can now proceed with proper app identifiers
+
+### 4. EAS CLI Configuration
+
+**Problem:**
+Warning about missing `cli.appVersionSource` field.
+
+**Solution:**
+Added to `eas.json`:
+```json
+"cli": {
+  "version": ">= 5.9.0",
+  "appVersionSource": "remote"
+}
+```
+
+**Result:**
+- EAS CLI properly configured for version management
+
+### 5. ESLint Warnings Cleanup
 
 **Problem:**
 Multiple ESLint warnings for unused imports and variables.
@@ -75,11 +118,12 @@ Removed unused imports:
 4. **Build Preview** - EAS CLI now available
 
 ### Files Modified:
-1. `jest.config.js` - No changes needed (preset handles it)
-2. `src/__tests__/setup.ts` - Added Expo winter runtime mocks
-3. `.github/workflows/build-preview.yml` - Added EAS CLI installation
-4. `src/services/firebase/config.ts` - Removed unused imports
-5. `src/services/firebase/__tests__/FirebaseService.test.ts` - Removed unused type imports
+1. `src/__tests__/setup.ts` - Added Expo winter runtime mocks at the top
+2. `.github/workflows/build-preview.yml` - Added EAS CLI installation step
+3. `app.json` - Added iOS bundleIdentifier and Android package
+4. `eas.json` - Added appVersionSource configuration
+5. `src/services/firebase/config.ts` - Removed unused imports
+6. `src/services/firebase/__tests__/FirebaseService.test.ts` - Removed unused type imports
 
 ## Testing Locally
 
