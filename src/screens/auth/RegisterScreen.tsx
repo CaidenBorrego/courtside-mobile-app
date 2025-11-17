@@ -16,7 +16,7 @@ import {
   HelperText,
 } from 'react-native-paper';
 import { useAuth } from '../../contexts/AuthContext';
-import { validateEmail, validatePassword, validateDisplayName } from '../../utils';
+import { validateEmail, validatePassword } from '../../utils';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -24,33 +24,33 @@ interface RegisterScreenProps {
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const { signUp, loading, error, clearError } = useAuth();
-  
+
   const [formData, setFormData] = useState({
     displayName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
-  
+
   const [formErrors, setFormErrors] = useState({
     displayName: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Handle input changes
   const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
     // Clear field error when user starts typing
     if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }));
+      setFormErrors((prev) => ({ ...prev, [field]: '' }));
     }
-    
+
     // Clear auth error when user starts typing
     if (error) {
       clearError();
@@ -69,8 +69,8 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     // Validate display name
     if (!formData.displayName.trim()) {
       errors.displayName = 'Display name is required';
-    } else if (!validateDisplayName(formData.displayName.trim())) {
-      errors.displayName = 'Display name must be at least 2 characters long';
+    } else if (formData.displayName.trim().length < 2) {
+      errors.displayName = 'Display name must be at least 2 characters';
     }
 
     // Validate email
@@ -105,11 +105,7 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
     }
 
     try {
-      await signUp(
-        formData.email.trim(),
-        formData.password,
-        formData.displayName.trim()
-      );
+      await signUp(formData.email.trim(), formData.password, formData.displayName.trim());
       // Navigation will be handled by the auth state change
     } catch (error) {
       // Error is handled by the context and displayed in the UI
@@ -134,9 +130,9 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
         <View style={styles.content}>
           <Card style={styles.card}>
             <Card.Content>
-              <Title style={styles.title}>Join CourtSide</Title>
+              <Title style={styles.title}>Create Account</Title>
               <Paragraph style={styles.subtitle}>
-                Create your account to start following teams and games
+                Join CourtSide to follow your favorite teams
               </Paragraph>
 
               {/* Display Name Input */}
@@ -229,18 +225,13 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
                 disabled={loading}
                 loading={loading}
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Creating Account...' : 'Sign Up'}
               </Button>
 
               {/* Login Link */}
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Already have an account? </Text>
-                <Button
-                  mode="text"
-                  onPress={navigateToLogin}
-                  disabled={loading}
-                  compact
-                >
+                <Button mode="text" onPress={navigateToLogin} disabled={loading} compact>
                   Sign In
                 </Button>
               </View>

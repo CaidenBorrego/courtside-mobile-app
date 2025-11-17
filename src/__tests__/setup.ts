@@ -1,3 +1,17 @@
+// Mock Firebase Timestamp
+export const mockTimestamp = {
+  fromDate: (date: Date) => ({
+    toDate: () => date,
+    seconds: Math.floor(date.getTime() / 1000),
+    nanoseconds: 0,
+  }),
+  now: () => ({
+    toDate: () => new Date(),
+    seconds: Math.floor(Date.now() / 1000),
+    nanoseconds: 0,
+  }),
+};
+
 // Mock Firebase
 jest.mock('../services/firebase/config', () => ({
   auth: {
@@ -13,6 +27,42 @@ jest.mock('../services/firebase/config', () => ({
     doc: jest.fn(),
   },
   messaging: null,
+}));
+
+// Mock Firebase Auth
+jest.mock('firebase/auth', () => ({
+  getAuth: jest.fn(),
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+  onAuthStateChanged: jest.fn(),
+  updateProfile: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
+  sendEmailVerification: jest.fn(),
+  updateEmail: jest.fn(),
+  updatePassword: jest.fn(),
+  deleteUser: jest.fn(),
+}));
+
+// Mock Firebase Firestore
+jest.mock('firebase/firestore', () => ({
+  Timestamp: mockTimestamp,
+  getFirestore: jest.fn(),
+  collection: jest.fn(),
+  doc: jest.fn(),
+  getDocs: jest.fn(),
+  getDoc: jest.fn(),
+  addDoc: jest.fn(),
+  updateDoc: jest.fn(),
+  deleteDoc: jest.fn(),
+  setDoc: jest.fn(),
+  query: jest.fn(),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  onSnapshot: jest.fn(),
+  writeBatch: jest.fn(),
+  arrayUnion: jest.fn(),
+  arrayRemove: jest.fn(),
 }));
 
 // Mock React Navigation

@@ -1,0 +1,98 @@
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { Text } from 'react-native-paper';
+import { firebaseService } from '../../../services/firebase';
+import { Location } from '../../../types';
+import LocationCard from '../../../components/tournament/LocationCard';
+
+interface LocationsTabProps {
+  tournamentId: string;
+}
+
+const LocationsTab: React.FC<LocationsTabProps> = ({ tournamentId }) => {
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadLocations();
+  }, [tournamentId]);
+
+  const loadLocations = async () => {
+    try {
+      setLoading(true);
+      // For now, load all locations
+      // In a production app, you might want to filter by tournament
+      const locationsData = await firebaseService.getLocations();
+      setLocations(locationsData);
+    } catch (error) {
+      console.error('Error loading locations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderLocationCard = ({ item }: { item: Location }) => (
+    <LocationCard location={item} />
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text variant="titleMedium" style={styles.emptyText}>
+        No locations available
+      </Text>
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#6200ee" />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={locations}
+        renderItem={renderLocationCard}
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={
+          locations.length === 0 ? styles.emptyListContainer : styles.listContainer
+        }
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  listContainer: {
+    padding: 16,
+  },
+  emptyListContainer: {
+    flexGrow: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#757575',
+  },
+});
+
+export default LocationsTab;

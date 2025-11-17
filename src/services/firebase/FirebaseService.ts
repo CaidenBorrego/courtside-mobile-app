@@ -477,22 +477,32 @@ export class FirebaseService {
   }
 
   // Real-time listener methods
-  onTournamentsSnapshot(callback: (tournaments: Tournament[]) => void): Unsubscribe {
+  onTournamentsSnapshot(
+    callback: (tournaments: Tournament[]) => void,
+    errorCallback?: (error: Error) => void
+  ): Unsubscribe {
     const q = query(
       this.tournamentsCollection,
       where('status', 'in', [TournamentStatus.UPCOMING, TournamentStatus.ACTIVE]),
       orderBy('startDate', 'asc')
     );
     
-    return onSnapshot(q, (querySnapshot) => {
-      const tournaments = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Tournament));
-      callback(tournaments);
-    }, (error) => {
-      console.error('Error in tournaments snapshot:', error);
-    });
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const tournaments = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Tournament));
+        callback(tournaments);
+      },
+      (error) => {
+        console.error('Error in tournaments snapshot:', error);
+        if (errorCallback) {
+          errorCallback(error as Error);
+        }
+      }
+    );
   }
 
   onTournamentSnapshot(tournamentId: string, callback: (tournament: Tournament | null) => void): Unsubscribe {
@@ -513,22 +523,33 @@ export class FirebaseService {
     });
   }
 
-  onGamesByTournamentSnapshot(tournamentId: string, callback: (games: Game[]) => void): Unsubscribe {
+  onGamesByTournamentSnapshot(
+    tournamentId: string,
+    callback: (games: Game[]) => void,
+    errorCallback?: (error: Error) => void
+  ): Unsubscribe {
     const q = query(
       this.gamesCollection,
       where('tournamentId', '==', tournamentId),
       orderBy('startTime', 'asc')
     );
     
-    return onSnapshot(q, (querySnapshot) => {
-      const games = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Game));
-      callback(games);
-    }, (error) => {
-      console.error('Error in games snapshot:', error);
-    });
+    return onSnapshot(
+      q,
+      (querySnapshot) => {
+        const games = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Game));
+        callback(games);
+      },
+      (error) => {
+        console.error('Error in games snapshot:', error);
+        if (errorCallback) {
+          errorCallback(error as Error);
+        }
+      }
+    );
   }
 
   onGameSnapshot(gameId: string, callback: (game: Game | null) => void): Unsubscribe {

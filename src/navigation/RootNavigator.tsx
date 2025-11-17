@@ -1,19 +1,50 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer, NavigationState } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
+import { saveNavigationState, loadNavigationState } from '../utils/navigationPersistence';
+import linking from './linking';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
+import { TournamentDetailScreen } from '../screens/tournament';
 import { RootStackParamList } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
+// Placeholder component for game details
+// This will be implemented in task 7
+const GameDetailScreen: React.FC = () => null;
+
 const RootNavigator: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
+  const { navigationRef } = useNavigation();
+  const [isReady, setIsReady] = useState(false);
+  const [initialState, setInitialState] = useState<NavigationState | undefined>();
 
-  // Show loading screen while checking auth state
-  if (loading) {
+  // Load persisted navigation state on mount
+  useEffect(() => {
+    const restoreState = async () => {
+      try {
+        const savedState = await loadNavigationState();
+        if (savedState) {
+          setInitialState(savedState);
+        }
+      } catch (error) {
+        console.error('Error restoring navigation state:', error);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    if (!isReady) {
+      restoreState();
+    }
+  }, [isReady]);
+
+  // Show loading screen while checking auth state or restoring navigation
+  if (loading || !isReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6200ee" />
@@ -22,17 +53,58 @@ const RootNavigator: React.FC = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      initialState={initialState}
+      onStateChange={(state) => {
+        // Persist navigation state on change
+        saveNavigationState(state);
+      }}
+    >
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
         }}
       >
         {isAuthenticated ? (
-          <Stack.Screen 
-            name="Main" 
-            component={MainNavigator}
-          />
+          <>
+            <Stack.Screen 
+              name="Main" 
+              component={MainNavigator}
+            />
+            {/* Nested navigation for tournament and game details */}
+            <Stack.Screen 
+              name="TournamentDetail" 
+              component={TournamentDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Tournament Details',
+                headerStyle: {
+                  backgroundColor: '#6200ee',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="GameDetail" 
+              component={GameDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Game Details',
+                headerStyle: {
+                  backgroundColor: '#6200ee',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+          </>
         ) : (
           <Stack.Screen 
             name="Auth" 

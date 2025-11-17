@@ -2,7 +2,8 @@
 export { default as Button } from './common/Button';
 
 // Tournament components
-// Will be added in future tasks
+export { default as TournamentCard } from './tournament/TournamentCard';
+export { default as LocationCard } from './tournament/LocationCard';
 
 // Game components  
-// Will be added in future tasks
+export { default as GameCard } from './game/GameCard';

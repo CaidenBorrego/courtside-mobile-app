@@ -1,5 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens';
 import { MainTabParamList } from '../types';
 
@@ -20,6 +21,15 @@ const MainNavigator: React.FC = () => {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#e0e0e0',
+          paddingBottom: 5,
+          paddingTop: 5,
+          height: 60,
+        },
+        tabBarActiveTintColor: '#6200ee',
+        tabBarInactiveTintColor: '#757575',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
         },
       }}
     >
@@ -29,6 +39,9 @@ const MainNavigator: React.FC = () => {
         options={{
           title: 'Tournaments',
           tabBarLabel: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="basketball-outline" size={size} color={color} />
+          ),
         }}
       />
       <Tab.Screen 
@@ -37,6 +50,9 @@ const MainNavigator: React.FC = () => {
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>

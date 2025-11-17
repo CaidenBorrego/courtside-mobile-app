@@ -115,6 +115,8 @@ export interface UserProfile extends FirestoreDocument {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  TournamentDetail: { tournamentId: string };
+  GameDetail: { gameId: string };
 };
 
 export type AuthStackParamList = {
@@ -128,6 +130,21 @@ export type MainTabParamList = {
 };
 
 export type TournamentStackParamList = {
+  TournamentList: undefined;
   TournamentDetail: { tournamentId: string };
   GameDetail: { gameId: string };
 };
+
+// Deep linking configuration types
+export interface DeepLinkConfig {
+  screens: {
+    Main: {
+      screens: {
+        Home: string;
+        Profile: string;
+      };
+    };
+    TournamentDetail: string;
+    GameDetail: string;
+  };
+}
