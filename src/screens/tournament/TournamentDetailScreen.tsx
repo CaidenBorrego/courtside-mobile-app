@@ -78,19 +78,22 @@ const TournamentDetailScreen: React.FC = () => {
     >
       <Tab.Screen 
         name="Divisions" 
-        children={() => <DivisionsTab tournamentId={tournamentId} />}
         options={{ tabBarLabel: 'Divisions' }}
-      />
+      >
+        {() => <DivisionsTab tournamentId={tournamentId} />}
+      </Tab.Screen>
       <Tab.Screen 
         name="Schedule" 
-        children={() => <ScheduleTab tournamentId={tournamentId} />}
         options={{ tabBarLabel: 'Schedule' }}
-      />
+      >
+        {() => <ScheduleTab tournamentId={tournamentId} />}
+      </Tab.Screen>
       <Tab.Screen 
         name="Locations" 
-        children={() => <LocationsTab tournamentId={tournamentId} />}
         options={{ tabBarLabel: 'Locations' }}
-      />
+      >
+        {() => <LocationsTab tournamentId={tournamentId} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 };

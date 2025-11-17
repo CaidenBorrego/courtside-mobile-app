@@ -19,6 +19,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
 
   useEffect(() => {
     loadDivisions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tournamentId]);
 
   useEffect(() => {

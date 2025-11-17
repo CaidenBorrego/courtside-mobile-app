@@ -124,10 +124,10 @@ describe('TournamentDetailScreen', () => {
   });
 
   it('updates when tournament data changes', async () => {
-    let callbackFn: ((tournament: Tournament | null) => void) | null = null;
+    let savedCallback: ((tournament: Tournament | null) => void) | undefined;
     
     (firebaseService.onTournamentSnapshot as jest.Mock).mockImplementation((id, callback) => {
-      callbackFn = callback;
+      savedCallback = callback;
       callback(mockTournament);
       return jest.fn();
     });
@@ -144,8 +144,8 @@ describe('TournamentDetailScreen', () => {
       name: 'Updated Tournament Name',
     };
     
-    if (callbackFn) {
-      callbackFn(updatedTournament);
+    if (savedCallback) {
+      savedCallback(updatedTournament);
     }
     
     // The tabs should still be visible after update

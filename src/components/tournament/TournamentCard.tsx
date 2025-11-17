@@ -15,7 +15,7 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'MMM dd, yyyy');
-    } catch (error) {
+    } catch {
       return 'Date unavailable';
     }
   };

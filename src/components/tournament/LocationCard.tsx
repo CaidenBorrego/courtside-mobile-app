@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Linking, Platform, Alert } from 'react-native';
+import { View, StyleSheet, Linking, Platform, Alert } from 'react-native';
 import { Card, Text, Button } from 'react-native-paper';
 import { Location } from '../../types';
 

@@ -19,7 +19,7 @@ const GameCard: React.FC<GameCardProps> = ({
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
       return format(date, 'MMM dd, h:mm a');
-    } catch (error) {
+    } catch {
       return 'Time TBD';
     }
   };

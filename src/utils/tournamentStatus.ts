@@ -1,4 +1,4 @@
-import { Tournament, TournamentStatus, FirebaseTimestamp } from '../types';
+import { Tournament, TournamentStatus } from '../types';
 
 /**
  * Compute the actual status of a tournament based on its dates
@@ -22,8 +22,8 @@ export function computeTournamentStatus(tournament: Tournament): TournamentStatu
   
   try {
     // Convert Firebase timestamps to dates
-    const startDate = tournament.startDate.toDate ? tournament.startDate.toDate() : new Date(tournament.startDate);
-    const endDate = tournament.endDate.toDate ? tournament.endDate.toDate() : new Date(tournament.endDate);
+    const startDate = tournament.startDate.toDate ? tournament.startDate.toDate() : new Date(tournament.startDate as any);
+    const endDate = tournament.endDate.toDate ? tournament.endDate.toDate() : new Date(tournament.endDate as any);
     
     // Normalize dates to start of day for comparison
     startDate.setHours(0, 0, 0, 0);
