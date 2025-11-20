@@ -1,10 +1,19 @@
 name: Build Preview
 
+# TODO: Uncomment the triggers below after setting up EAS credentials
+# Run these commands locally first:
+#   1. eas login
+#   2. eas build --platform ios --profile preview
+#   3. eas build --platform android --profile preview
+# Once credentials are configured, uncomment the 'on' section below and remove workflow_dispatch
+
 on:
-  workflow_dispatch:  # Manual trigger only
-  pull_request:
-    branches: [main]
-    types: [labeled]  # Only when labeled
+  workflow_dispatch:  # Manual trigger (remove this after credential setup)
+  # Uncomment below after EAS credentials are set up:
+  # push:
+  #   branches: [main]  # Auto-build when merging to main
+  # pull_request:
+  #   branches: [main]  # Auto-build for PRs to main
 
 jobs:
   build-preview:

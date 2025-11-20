@@ -17,11 +17,13 @@
 - **TypeScript Errors:** 0
 - **Status:** All types valid
 
-### Build Preview: MANUAL TRIGGER ⚙️
+### Build Preview: READY TO ENABLE ⚙️
 - **EAS CLI:** Installed in workflow
 - **Bundle IDs:** Configured for iOS and Android
-- **Trigger:** Manual only (workflow_dispatch) or PR with 'build-preview' label
-- **Status:** Requires EAS credentials setup (run interactively first)
+- **Current Trigger:** Manual only (workflow_dispatch)
+- **Future Trigger:** Automatic on merge to main (after credential setup)
+- **Status:** Workflow ready, credentials pending
+- **Action Required:** Follow `EAS_SETUP_CHECKLIST.md` to enable automatic builds
 
 ## Critical Fixes Applied
 
