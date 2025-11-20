@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import { firebaseService } from '../../../services/firebase';
 import { Location } from '../../../types';
 import LocationCard from '../../../components/tournament/LocationCard';
@@ -13,9 +14,12 @@ const LocationsTab: React.FC<LocationsTabProps> = ({ tournamentId }) => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadLocations();
-  }, [tournamentId]);
+  // Use useFocusEffect to reload data when tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadLocations();
+    }, [tournamentId])
+  );
 
   const loadLocations = async () => {
     try {

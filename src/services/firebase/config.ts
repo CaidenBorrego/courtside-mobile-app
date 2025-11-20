@@ -33,6 +33,8 @@ const firebaseConfig = isDevelopment ? firebaseConfigDev : firebaseConfigProd;
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Auth
+// Note: Firebase Auth will automatically use AsyncStorage for persistence in React Native
+// if @react-native-async-storage/async-storage is installed
 const auth: Auth = getAuth(app);
 
 export { auth };

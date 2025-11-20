@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Text, Card, Chip } from 'react-native-paper';
+import { useFocusEffect } from '@react-navigation/native';
 import { firebaseService } from '../../../services/firebase';
 import { Division, Game } from '../../../types';
 import Button from '../../../components/common/Button';
@@ -17,10 +18,12 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
   const [gamesLoading, setGamesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadDivisions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tournamentId]);
+  // Use useFocusEffect to reload data when tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadDivisions();
+    }, [tournamentId])
+  );
 
   useEffect(() => {
     if (selectedDivision) {

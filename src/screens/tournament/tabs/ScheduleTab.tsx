@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import { Text, Searchbar } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { firebaseService } from '../../../services/firebase';
 import { Game, RootStackParamList } from '../../../types';
@@ -22,27 +22,40 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Set up real-time listener for games
-    const unsubscribe = firebaseService.onGamesByTournamentSnapshot(
-      tournamentId,
-      (updatedGames) => {
-        setGames(updatedGames);
-        setFilteredGames(updatedGames);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('Failed to load games:', err);
-        setError('Failed to load games. Please try again.');
-        setLoading(false);
-      }
-    );
+  // Use useFocusEffect to reload data when tab comes into focus
+  // This ensures data is fresh when navigating back from GameDetail
+  useFocusEffect(
+    useCallback(() => {
+      console.log('📅 ScheduleTab focused for tournament:', tournamentId);
+      setLoading(true);
+      
+      // Set up real-time listener for games
+      const unsubscribe = firebaseService.onGamesByTournamentSnapshot(
+        tournamentId,
+        (updatedGames) => {
+          console.log('📅 Games received:', updatedGames.length, 'games');
+          updatedGames.forEach(game => {
+            console.log('  -', game.teamA, 'vs', game.teamB);
+          });
+          setGames(updatedGames);
+          setFilteredGames(updatedGames);
+          setLoading(false);
+          setError(null);
+        },
+        (err) => {
+          console.error('❌ Failed to load games:', err);
+          setError('Failed to load games. Please try again.');
+          setLoading(false);
+        }
+      );
 
-    return () => {
-      unsubscribe();
-    };
-  }, [tournamentId]);
+      // Cleanup function called when tab loses focus or unmounts
+      return () => {
+        console.log('📅 ScheduleTab unfocused, cleaning up listener');
+        unsubscribe();
+      };
+    }, [tournamentId])
+  );
 
   // Filter games based on search query
   useEffect(() => {

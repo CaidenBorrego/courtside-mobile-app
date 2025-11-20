@@ -84,6 +84,20 @@ jest.mock('react-native-paper', () => ({
   Provider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  default: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+    getAllKeys: jest.fn(),
+    multiGet: jest.fn(),
+    multiSet: jest.fn(),
+    multiRemove: jest.fn(),
+  },
+}));
+
 // Mock Expo modules
 jest.mock('expo-constants', () => ({
   default: {

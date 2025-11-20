@@ -9,13 +9,10 @@ import linking from './linking';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { TournamentDetailScreen } from '../screens/tournament';
+import { GameDetailScreen } from '../screens/game';
 import { RootStackParamList } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
-
-// Placeholder component for game details
-// This will be implemented in task 7
-const GameDetailScreen: React.FC = () => null;
 
 const RootNavigator: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
