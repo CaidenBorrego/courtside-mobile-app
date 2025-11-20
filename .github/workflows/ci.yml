@@ -18,8 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: courtside-mobile-app/package-lock.json
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -44,7 +42,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: ./coverage/lcov.info
+          file: ./courtside-mobile-app/coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
 
@@ -59,8 +57,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: courtside-mobile-app/package-lock.json
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
