@@ -31,6 +31,12 @@ jobs:
       - name: Run type check
         run: npx tsc --noEmit
 
+      - name: Print Node / npm / Jest versions
+        run: |
+          node -v
+          npm -v
+          npx jest --version || echo "Jest not found via npx"
+
       - name: Run tests
         run: npm test -- --coverage --watchAll=false
 
