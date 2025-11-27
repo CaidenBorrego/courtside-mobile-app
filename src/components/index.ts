@@ -1,5 +1,6 @@
 // Common components
 export { default as Button } from './common/Button';
+export { default as FollowButton } from './common/FollowButton';
 
 // Tournament components
 export { default as TournamentCard } from './tournament/TournamentCard';

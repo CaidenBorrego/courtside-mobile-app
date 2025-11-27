@@ -129,6 +129,13 @@ export type MainTabParamList = {
   Profile: undefined;
 };
 
+export type ProfileStackParamList = {
+  ProfileHome: undefined;
+  ManageTeams: undefined;
+  ManageGames: undefined;
+  SearchTeams: undefined;
+};
+
 export type TournamentStackParamList = {
   TournamentList: undefined;
   TournamentDetail: { tournamentId: string };

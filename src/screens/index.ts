@@ -10,4 +10,5 @@ export * from './tournament';
 // Game screens
 export * from './game';
 
-// Profile screens - will be added in task 8
+// Profile screens
+export * from './profile';

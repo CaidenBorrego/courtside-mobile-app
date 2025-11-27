@@ -3,17 +3,20 @@ import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Card, Text } from 'react-native-paper';
 import { Game, GameStatus } from '../../types';
 import { format } from 'date-fns';
+import FollowButton from '../common/FollowButton';
 
 interface GameCardProps {
   game: Game;
   onPress?: (gameId: string) => void;
   showLocation?: boolean;
+  showFollowButton?: boolean;
 }
 
 const GameCard: React.FC<GameCardProps> = ({ 
   game, 
   onPress, 
-  showLocation = true 
+  showLocation = true,
+  showFollowButton = true
 }) => {
   const formatTime = (timestamp: any) => {
     try {
@@ -130,6 +133,17 @@ const GameCard: React.FC<GameCardProps> = ({
             </Text>
           </View>
         )}
+
+        {showFollowButton && (
+          <View style={styles.followButtonContainer}>
+            <FollowButton
+              itemId={game.id}
+              itemType="game"
+              itemName={`${game.teamA} vs ${game.teamB}`}
+              compact
+            />
+          </View>
+        )}
       </Card.Content>
     </Card>
   );
@@ -215,6 +229,10 @@ const styles = StyleSheet.create({
   },
   locationText: {
     color: '#757575',
+  },
+  followButtonContainer: {
+    marginTop: 12,
+    alignItems: 'center',
   },
 });
 

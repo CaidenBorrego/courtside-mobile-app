@@ -2,14 +2,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens';
+import ProfileNavigator from './ProfileNavigator';
 import { MainTabParamList } from '../types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
-
-// Placeholder ProfileScreen component
-const ProfileScreen: React.FC = () => {
-  return null; // Will be implemented in task 8
-};
 
 const MainNavigator: React.FC = () => {
   return (
@@ -46,10 +42,11 @@ const MainNavigator: React.FC = () => {
       />
       <Tab.Screen 
         name="Profile" 
-        component={ProfileScreen}
+        component={ProfileNavigator}
         options={{
           title: 'Profile',
           tabBarLabel: 'Profile',
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

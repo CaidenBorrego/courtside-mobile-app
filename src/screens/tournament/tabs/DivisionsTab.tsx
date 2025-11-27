@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { Text, Card, Chip } from 'react-native-paper';
+import { Text, Card, Chip, Divider } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { firebaseService } from '../../../services/firebase';
 import { Division, Game } from '../../../types';
 import Button from '../../../components/common/Button';
+import FollowButton from '../../../components/common/FollowButton';
 
 interface DivisionsTabProps {
   tournamentId: string;
@@ -14,6 +16,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [selectedDivision, setSelectedDivision] = useState<string | null>(null);
   const [games, setGames] = useState<Game[]>([]);
+  const [teams, setTeams] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [gamesLoading, setGamesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,15 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
       setGamesLoading(true);
       const gamesData = await firebaseService.getGamesByDivision(divisionId);
       setGames(gamesData);
+      
+      // Extract unique team names from games
+      const teamNamesSet = new Set<string>();
+      gamesData.forEach((game: Game) => {
+        teamNamesSet.add(game.teamA);
+        teamNamesSet.add(game.teamB);
+      });
+      const uniqueTeams = Array.from(teamNamesSet).sort();
+      setTeams(uniqueTeams);
     } catch (error) {
       console.error('Error loading games:', error);
     } finally {
@@ -94,10 +106,57 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
               </Text>
             </View>
             {isSelected && (
-              <View style={styles.gamesCountContainer}>
-                <Text variant="bodySmall" style={styles.gamesCountText}>
-                  {gamesLoading ? 'Loading games...' : `${games.length} game${games.length !== 1 ? 's' : ''}`}
-                </Text>
+              <View style={styles.expandedContent}>
+                {gamesLoading ? (
+                  <View style={styles.loadingTeams}>
+                    <ActivityIndicator size="small" color="#6200ee" />
+                    <Text variant="bodySmall" style={styles.loadingTeamsText}>
+                      Loading teams...
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <Divider style={styles.divider} />
+                    <View style={styles.teamsHeader}>
+                      <Ionicons name="people" size={20} color="#6200ee" />
+                      <Text variant="titleSmall" style={styles.teamsTitle}>
+                        Teams ({teams.length})
+                      </Text>
+                    </View>
+                    {teams.length === 0 ? (
+                      <Text variant="bodySmall" style={styles.noTeamsText}>
+                        No teams in this division yet
+                      </Text>
+                    ) : (
+                      <View style={styles.teamsList}>
+                        {teams.map((team, index) => (
+                          <View key={`${team}-${index}`}>
+                            <View style={styles.teamItem}>
+                              <View style={styles.teamInfo}>
+                                <Ionicons name="basketball" size={16} color="#6200ee" />
+                                <Text variant="bodyMedium" style={styles.teamName}>
+                                  {team}
+                                </Text>
+                              </View>
+                              <FollowButton
+                                itemId={team}
+                                itemType="team"
+                                itemName={team}
+                                compact
+                              />
+                            </View>
+                            {index < teams.length - 1 && <Divider style={styles.teamDivider} />}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                    <View style={styles.gamesCountContainer}>
+                      <Text variant="bodySmall" style={styles.gamesCountText}>
+                        {games.length} game{games.length !== 1 ? 's' : ''} in this division
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
             )}
           </Card.Content>
@@ -220,6 +279,59 @@ const styles = StyleSheet.create({
   infoText: {
     color: '#757575',
   },
+  expandedContent: {
+    marginTop: 12,
+  },
+  loadingTeams: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 8,
+  },
+  loadingTeamsText: {
+    color: '#757575',
+  },
+  divider: {
+    marginVertical: 8,
+  },
+  teamsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  teamsTitle: {
+    fontWeight: 'bold',
+    color: '#6200ee',
+  },
+  noTeamsText: {
+    color: '#757575',
+    fontStyle: 'italic',
+    paddingVertical: 8,
+  },
+  teamsList: {
+    marginBottom: 8,
+  },
+  teamItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  teamInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  teamName: {
+    flex: 1,
+    fontWeight: '500',
+  },
+  teamDivider: {
+    marginVertical: 4,
+  },
   gamesCountContainer: {
     marginTop: 8,
     paddingTop: 8,
@@ -227,8 +339,8 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
   },
   gamesCountText: {
-    color: '#6200ee',
-    fontWeight: '600',
+    color: '#757575',
+    fontSize: 12,
   },
   errorContainer: {
     flex: 1,
