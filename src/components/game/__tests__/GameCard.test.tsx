@@ -4,6 +4,11 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import GameCard from '../GameCard';
 import { Game, GameStatus } from '../../../types';
 import { Timestamp } from 'firebase/firestore';
+import { useAuth } from '../../../contexts/AuthContext';
+
+// Mock AuthContext
+jest.mock('../../../contexts/AuthContext');
+const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 
 const mockGame: Game = {
   id: 'game-1',
@@ -21,10 +26,10 @@ const mockGame: Game = {
 
 const mockOnPress = jest.fn();
 
-const renderComponent = (game: Game = mockGame, onPress?: (id: string) => void) => {
+const renderComponent = (game: Game = mockGame, onPress?: (id: string) => void, showFollowButton = false) => {
   return render(
     <PaperProvider>
-      <GameCard game={game} onPress={onPress} showLocation={true} />
+      <GameCard game={game} onPress={onPress} showLocation={true} showFollowButton={showFollowButton} />
     </PaperProvider>
   );
 };
@@ -32,6 +37,20 @@ const renderComponent = (game: Game = mockGame, onPress?: (id: string) => void) 
 describe('GameCard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock useAuth to return null user (no follow button shown by default)
+    mockUseAuth.mockReturnValue({
+      user: null,
+      userProfile: null,
+      loading: false,
+      error: null,
+      isAuthenticated: false,
+      signIn: jest.fn(),
+      signUp: jest.fn(),
+      signOut: jest.fn(),
+      clearError: jest.fn(),
+      refreshUserProfile: jest.fn(),
+    });
   });
 
   it('renders game information correctly', () => {

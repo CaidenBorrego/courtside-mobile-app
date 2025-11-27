@@ -233,17 +233,15 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
                 <Button
                   title={`Unfollow (${selectedItems.size})`}
                   onPress={handleBulkUnfollow}
-                  variant="outlined"
+                  mode="outlined"
                   disabled={loading}
-                  compact
                 />
               )}
               <Button
                 title="Clear All"
                 onPress={handleClearAll}
-                variant="outlined"
+                mode="outlined"
                 disabled={loading}
-                compact
               />
             </View>
           </Card.Content>

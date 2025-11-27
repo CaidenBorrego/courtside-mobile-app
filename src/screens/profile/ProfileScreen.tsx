@@ -413,8 +413,7 @@ const ProfileScreen: React.FC = () => {
         <Button
           title="Sign Out"
           onPress={handleSignOut}
-          variant="outlined"
-          icon="log-out-outline"
+          mode="outlined"
         />
       </View>
     </ScrollView>

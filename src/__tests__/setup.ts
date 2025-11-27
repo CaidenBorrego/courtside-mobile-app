@@ -4,11 +4,27 @@ export const mockTimestamp = {
     toDate: () => date,
     seconds: Math.floor(date.getTime() / 1000),
     nanoseconds: 0,
+    toMillis: () => date.getTime(),
+    isEqual: (other: any) => date.getTime() === other.toMillis(),
+    valueOf: () => date.toISOString(),
+    toJSON: () => ({ 
+      seconds: Math.floor(date.getTime() / 1000), 
+      nanoseconds: 0,
+      type: 'timestamp'
+    }),
   }),
   now: () => ({
     toDate: () => new Date(),
     seconds: Math.floor(Date.now() / 1000),
     nanoseconds: 0,
+    toMillis: () => Date.now(),
+    isEqual: (other: any) => Date.now() === other.toMillis(),
+    valueOf: () => new Date().toISOString(),
+    toJSON: () => ({ 
+      seconds: Math.floor(Date.now() / 1000), 
+      nanoseconds: 0,
+      type: 'timestamp'
+    }),
   }),
 };
 

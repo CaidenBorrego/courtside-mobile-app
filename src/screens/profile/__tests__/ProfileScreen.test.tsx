@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { Alert } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import ProfileScreen from '../ProfileScreen';
 import { useAuth } from '../../../contexts/AuthContext';
 import { userProfileService } from '../../../services/user/UserProfileService';
@@ -12,6 +13,15 @@ import { mockTimestamp } from '../../../__tests__/setup';
 jest.mock('../../../contexts/AuthContext');
 jest.mock('../../../services/user/UserProfileService');
 jest.mock('../../../services/firebase');
+
+// Helper to wrap component with NavigationContainer
+const renderWithNavigation = (component: React.ReactElement) => {
+  return render(
+    <NavigationContainer>
+      {component}
+    </NavigationContainer>
+  );
+};
 
 const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>;
 const mockUserProfileService = userProfileService as jest.Mocked<typeof userProfileService>;
@@ -71,10 +81,11 @@ describe('ProfileScreen', () => {
     });
 
     mockFirebaseService.getGame.mockResolvedValue(mockGame);
+    mockUserProfileService.syncTeamGames.mockResolvedValue({ added: 0, skipped: 0 });
   });
 
   it('should render user information correctly', async () => {
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(getByText('Test User')).toBeTruthy();
@@ -84,7 +95,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should display following statistics', async () => {
-    const { getAllByText, getByText } = render(<ProfileScreen />);
+    const { getAllByText, getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       const twoElements = getAllByText('2');
@@ -95,7 +106,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should display followed teams list', async () => {
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(getByText('Team A')).toBeTruthy();
@@ -106,7 +117,7 @@ describe('ProfileScreen', () => {
   it('should toggle notifications', async () => {
     mockUserProfileService.toggleNotifications.mockResolvedValue();
 
-    const { getByRole } = render(<ProfileScreen />);
+    const { getByRole } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       const notificationSwitch = getByRole('switch');
@@ -128,7 +139,7 @@ describe('ProfileScreen', () => {
   it('should handle unfollow team', async () => {
     mockUserProfileService.unfollowTeam.mockResolvedValue();
 
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(getByText('Team A')).toBeTruthy();
@@ -161,7 +172,7 @@ describe('ProfileScreen', () => {
   it('should handle unfollow game', async () => {
     mockUserProfileService.unfollowGame.mockResolvedValue();
 
-    const { getAllByText } = render(<ProfileScreen />);
+    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       const gameElements = getAllByText('Team A vs Team B');
@@ -179,7 +190,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should handle sign out', async () => {
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(getByText('Sign Out')).toBeTruthy();
@@ -218,7 +229,7 @@ describe('ProfileScreen', () => {
       refreshUserProfile: jest.fn(),
     });
 
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     expect(getByText('Loading profile...')).toBeTruthy();
   });
@@ -241,7 +252,7 @@ describe('ProfileScreen', () => {
       refreshUserProfile: mockRefreshUserProfile,
     });
 
-    const { getByText } = render(<ProfileScreen />);
+    const { getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(getByText('No teams followed yet')).toBeTruthy();
@@ -254,7 +265,7 @@ describe('ProfileScreen', () => {
       new Error('Failed to update')
     );
 
-    const { getByRole } = render(<ProfileScreen />);
+    const { getByRole } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       const notificationSwitch = getByRole('switch');
@@ -273,7 +284,7 @@ describe('ProfileScreen', () => {
   });
 
   it('should load followed games data', async () => {
-    const { getAllByText } = render(<ProfileScreen />);
+    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
       expect(mockFirebaseService.getGame).toHaveBeenCalledWith('game-1');

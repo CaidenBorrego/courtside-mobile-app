@@ -93,7 +93,10 @@ describe('FollowButton', () => {
         );
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(true);
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Following Team B');
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Success',
+          "Following Team B! You'll also automatically follow all their games."
+        );
       });
     });
 
@@ -120,7 +123,10 @@ describe('FollowButton', () => {
         );
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(false);
-        expect(Alert.alert).toHaveBeenCalledWith('Success', 'Unfollowed Team A');
+        expect(Alert.alert).toHaveBeenCalledWith(
+          'Success',
+          'Unfollowed Team A. Their games have been unfollowed too.'
+        );
       });
     });
 
