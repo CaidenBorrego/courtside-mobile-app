@@ -53,6 +53,11 @@ describe('FollowButton', () => {
     });
   });
 
+  afterEach(async () => {
+    // Wait for any pending promises to resolve
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
   describe('Team Following', () => {
     it('should render follow button for unfollowed team', () => {
       const { getByText } = render(
