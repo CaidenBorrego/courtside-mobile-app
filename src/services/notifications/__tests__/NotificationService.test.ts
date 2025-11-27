@@ -177,7 +177,7 @@ describe('NotificationService', () => {
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
         },
-        trigger: { date: triggerDate },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
       });
     });
 
@@ -200,7 +200,7 @@ describe('NotificationService', () => {
           sound: true,
           priority: Notifications.AndroidNotificationPriority.HIGH,
         },
-        trigger: { seconds: 60 },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 60, repeats: false },
       });
     });
 
@@ -310,7 +310,7 @@ describe('NotificationService', () => {
               scoreB: 72,
             },
           }),
-          trigger: { seconds: 1 },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 1, repeats: false },
         })
       );
     });

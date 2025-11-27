@@ -19,6 +19,8 @@ class NotificationService {
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
       }),
     });
   }
@@ -141,10 +143,10 @@ class NotificationService {
     data?: Record<string, any>
   ): Promise<string> {
     try {
-      const notificationTrigger =
+      const notificationTrigger: Notifications.NotificationTriggerInput =
         trigger instanceof Date
-          ? { date: trigger }
-          : { seconds: trigger };
+          ? { type: Notifications.SchedulableTriggerInputTypes.DATE, date: trigger }
+          : { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: trigger, repeats: false };
 
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {

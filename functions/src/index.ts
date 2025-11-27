@@ -12,7 +12,7 @@ const db = admin.firestore();
  */
 export const checkUpcomingGames = functions.pubsub
   .schedule('every 15 minutes')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     try {
       const now = admin.firestore.Timestamp.now();
       const fifteenMinutesFromNow = admin.firestore.Timestamp.fromMillis(
@@ -96,7 +96,7 @@ export const checkUpcomingGames = functions.pubsub
           };
 
           notificationPromises.push(
-            admin.messaging().send(message).catch((error) => {
+            admin.messaging().send(message).catch((error: any) => {
               console.error(`Error sending notification to user ${userDoc.id}:`, error);
               // If token is invalid, remove it from user profile
               if (error.code === 'messaging/invalid-registration-token' ||
@@ -125,7 +125,7 @@ export const checkUpcomingGames = functions.pubsub
  */
 export const onGameCompleted = functions.firestore
   .document('games/{gameId}')
-  .onUpdate(async (change, context) => {
+  .onUpdate(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
     try {
       const gameId = context.params.gameId;
       const beforeData = change.before.data();
@@ -157,9 +157,9 @@ export const onGameCompleted = functions.firestore
 
         // Combine all users (using Set to avoid duplicates)
         const userIds = new Set<string>();
-        gameFollowersSnapshot.forEach(doc => userIds.add(doc.id));
-        teamAFollowersSnapshot.forEach(doc => userIds.add(doc.id));
-        teamBFollowersSnapshot.forEach(doc => userIds.add(doc.id));
+        gameFollowersSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => userIds.add(doc.id));
+        teamAFollowersSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => userIds.add(doc.id));
+        teamBFollowersSnapshot.forEach((doc: admin.firestore.QueryDocumentSnapshot) => userIds.add(doc.id));
 
         if (userIds.size === 0) {
           console.log('No users to notify');
@@ -223,7 +223,7 @@ export const onGameCompleted = functions.firestore
           };
 
           notificationPromises.push(
-            admin.messaging().send(message).catch((error) => {
+            admin.messaging().send(message).catch((error: any) => {
               console.error(`Error sending notification to user ${userId}:`, error);
               // If token is invalid, remove it from user profile
               if (error.code === 'messaging/invalid-registration-token' ||
@@ -251,7 +251,7 @@ export const onGameCompleted = functions.firestore
  * HTTP function to manually trigger a test notification
  * Useful for testing notification setup
  */
-export const sendTestNotification = functions.https.onCall(async (data, context) => {
+export const sendTestNotification = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // Verify user is authenticated
   if (!context.auth) {
     throw new functions.https.HttpsError(
@@ -304,7 +304,7 @@ export const sendTestNotification = functions.https.onCall(async (data, context)
  */
 export const cleanupOldFollowedGames = functions.pubsub
   .schedule('every 24 hours')
-  .onRun(async (context) => {
+  .onRun(async (context: functions.EventContext) => {
     try {
       const thirtyDaysAgo = admin.firestore.Timestamp.fromMillis(
         Date.now() - 30 * 24 * 60 * 60 * 1000
