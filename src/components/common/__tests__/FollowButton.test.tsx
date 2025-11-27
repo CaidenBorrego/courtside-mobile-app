@@ -37,7 +37,9 @@ describe('FollowButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(Alert, 'alert');
+    
+    // Mock Alert.alert before each test
+    jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
     mockUseAuth.mockReturnValue({
       user: mockUser as any,
@@ -55,7 +57,8 @@ describe('FollowButton', () => {
 
   afterEach(async () => {
     // Wait for any pending promises to resolve
-    await new Promise(resolve => setImmediate(resolve));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    jest.restoreAllMocks();
   });
 
   describe('Team Following', () => {
@@ -76,7 +79,8 @@ describe('FollowButton', () => {
     });
 
     it('should follow a team when follow button is pressed', async () => {
-      mockUserProfileService.followTeam.mockResolvedValue();
+      mockUserProfileService.followTeam.mockResolvedValue(undefined);
+      mockRefreshUserProfile.mockResolvedValue(undefined);
 
       const onFollowChange = jest.fn();
       const { getByText } = render(
@@ -96,6 +100,9 @@ describe('FollowButton', () => {
           'test-user-id',
           'Team B'
         );
+      });
+
+      await waitFor(() => {
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(true);
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -106,7 +113,8 @@ describe('FollowButton', () => {
     });
 
     it('should unfollow a team when following button is pressed', async () => {
-      mockUserProfileService.unfollowTeam.mockResolvedValue();
+      mockUserProfileService.unfollowTeam.mockResolvedValue(undefined);
+      mockRefreshUserProfile.mockResolvedValue(undefined);
 
       const onFollowChange = jest.fn();
       const { getByText } = render(
@@ -126,6 +134,9 @@ describe('FollowButton', () => {
           'test-user-id',
           'Team A'
         );
+      });
+
+      await waitFor(() => {
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(false);
         expect(Alert.alert).toHaveBeenCalledWith(
@@ -171,7 +182,8 @@ describe('FollowButton', () => {
     });
 
     it('should follow a game when follow button is pressed', async () => {
-      mockUserProfileService.followGame.mockResolvedValue();
+      mockUserProfileService.followGame.mockResolvedValue(undefined);
+      mockRefreshUserProfile.mockResolvedValue(undefined);
 
       const onFollowChange = jest.fn();
       const { getByText } = render(
@@ -191,6 +203,9 @@ describe('FollowButton', () => {
           'test-user-id',
           'game-2'
         );
+      });
+
+      await waitFor(() => {
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(true);
         expect(Alert.alert).toHaveBeenCalledWith('Success', 'Following Game 2');
@@ -198,7 +213,8 @@ describe('FollowButton', () => {
     });
 
     it('should unfollow a game when following button is pressed', async () => {
-      mockUserProfileService.unfollowGame.mockResolvedValue();
+      mockUserProfileService.unfollowGame.mockResolvedValue(undefined);
+      mockRefreshUserProfile.mockResolvedValue(undefined);
 
       const onFollowChange = jest.fn();
       const { getByText } = render(
@@ -218,6 +234,9 @@ describe('FollowButton', () => {
           'test-user-id',
           'game-1'
         );
+      });
+
+      await waitFor(() => {
         expect(mockRefreshUserProfile).toHaveBeenCalled();
         expect(onFollowChange).toHaveBeenCalledWith(false);
         expect(Alert.alert).toHaveBeenCalledWith('Success', 'Unfollowed Game 1');
