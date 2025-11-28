@@ -117,6 +117,8 @@ export type RootStackParamList = {
   Main: undefined;
   TournamentDetail: { tournamentId: string };
   GameDetail: { gameId: string };
+  ManageTournament: { tournamentId: string };
+  BulkImport: undefined;
 };
 
 export type AuthStackParamList = {
@@ -127,6 +129,7 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Home: undefined;
   Profile: undefined;
+  Admin: undefined;
 };
 
 export type ProfileStackParamList = {

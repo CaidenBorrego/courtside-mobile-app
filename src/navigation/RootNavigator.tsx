@@ -10,6 +10,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { TournamentDetailScreen } from '../screens/tournament';
 import { GameDetailScreen } from '../screens/game';
+import { ManageTournamentScreen, BulkImportScreen } from '../screens/admin';
 import { RootStackParamList } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -92,6 +93,36 @@ const RootNavigator: React.FC = () => {
               options={{
                 headerShown: true,
                 title: 'Game Details',
+                headerStyle: {
+                  backgroundColor: '#6200ee',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ManageTournament" 
+              component={ManageTournamentScreen}
+              options={{
+                headerShown: true,
+                title: 'Manage Tournament',
+                headerStyle: {
+                  backgroundColor: '#6200ee',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="BulkImport" 
+              component={BulkImportScreen}
+              options={{
+                headerShown: true,
+                title: 'Bulk Import',
                 headerStyle: {
                   backgroundColor: '#6200ee',
                 },

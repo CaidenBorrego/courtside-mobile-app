@@ -1,13 +1,17 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { HomeScreen } from '../screens';
+import { HomeScreen, AdminPanelScreen } from '../screens';
 import ProfileNavigator from './ProfileNavigator';
-import { MainTabParamList } from '../types';
+import { MainTabParamList, UserRole } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const MainNavigator: React.FC = () => {
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === UserRole.ADMIN;
+
   return (
     <Tab.Navigator
       initialRouteName="Home"
@@ -52,6 +56,19 @@ const MainNavigator: React.FC = () => {
           ),
         }}
       />
+      {isAdmin && (
+        <Tab.Screen 
+          name="Admin" 
+          component={AdminPanelScreen}
+          options={{
+            title: 'Admin Panel',
+            tabBarLabel: 'Admin',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="settings-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      )}
     </Tab.Navigator>
   );
 };

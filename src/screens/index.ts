@@ -12,3 +12,6 @@ export * from './game';
 
 // Profile screens
 export * from './profile';
+
+// Admin screens
+export * from './admin';
