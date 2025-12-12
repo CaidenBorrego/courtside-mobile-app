@@ -4,6 +4,7 @@ import { Button as PaperButton } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { userProfileService } from '../../services/user/UserProfileService';
+import { useTheme } from '../../hooks/useTheme';
 
 export type FollowItemType = 'team' | 'game';
 
@@ -23,11 +24,11 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   compact = false,
 }) => {
   const { user, userProfile, refreshUserProfile } = useAuth();
+  const { colors } = useTheme();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [optimisticFollowing, setOptimisticFollowing] = useState(false);
 
-  // Determine if user is following this item
   useEffect(() => {
     if (!userProfile) {
       setIsFollowing(false);
@@ -49,7 +50,6 @@ const FollowButton: React.FC<FollowButtonProps> = ({
       return;
     }
 
-    // Optimistic UI update
     const newFollowingState = !optimisticFollowing;
     setOptimisticFollowing(newFollowingState);
     setLoading(true);
@@ -69,15 +69,12 @@ const FollowButton: React.FC<FollowButtonProps> = ({
         }
       }
 
-      // Refresh user profile to get updated following lists
       await refreshUserProfile();
 
-      // Notify parent component of change
       if (onFollowChange) {
         onFollowChange(newFollowingState);
       }
 
-      // Show success message with additional info for teams
       const action = newFollowingState ? 'Following' : 'Unfollowed';
       const itemLabel = itemName || (itemType === 'team' ? 'team' : 'game');
       
@@ -96,11 +93,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
       }
     } catch (error) {
       console.error('Error toggling follow:', error);
-
-      // Revert optimistic update on error
       setOptimisticFollowing(!newFollowingState);
-
-      // Show error message
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to update following status';
       Alert.alert('Error', errorMessage);
@@ -110,7 +103,7 @@ const FollowButton: React.FC<FollowButtonProps> = ({
   };
 
   if (!user) {
-    return null; // Don't show button if user is not authenticated
+    return null;
   }
 
   const buttonLabel = optimisticFollowing ? 'Following' : 'Follow';
@@ -124,14 +117,17 @@ const FollowButton: React.FC<FollowButtonProps> = ({
         disabled={loading}
         style={[
           styles.compactButton,
-          optimisticFollowing ? styles.followingButton : styles.followButton,
+          { 
+            backgroundColor: optimisticFollowing ? 'transparent' : colors.text,
+            borderColor: colors.text,
+          }
         ]}
-        labelStyle={styles.compactLabel}
-        icon={({ size, color }) =>
+        labelStyle={[styles.compactLabel, { color: optimisticFollowing ? colors.text : colors.background }]}
+        icon={({ size }) =>
           loading ? (
-            <ActivityIndicator size={16} color={color} />
+            <ActivityIndicator size={16} color={optimisticFollowing ? colors.text : colors.background} />
           ) : (
-            <Ionicons name={buttonIcon} size={size} color={color} />
+            <Ionicons name={buttonIcon} size={size} color={optimisticFollowing ? colors.text : colors.background} />
           )
         }
       >
@@ -147,14 +143,17 @@ const FollowButton: React.FC<FollowButtonProps> = ({
       disabled={loading}
       style={[
         styles.button,
-        optimisticFollowing ? styles.followingButton : styles.followButton,
+        { 
+          backgroundColor: optimisticFollowing ? 'transparent' : colors.text,
+          borderColor: colors.text,
+        }
       ]}
-      labelStyle={styles.label}
-      icon={({ size, color }) =>
+      labelStyle={[styles.label, { color: optimisticFollowing ? colors.text : colors.background }]}
+      icon={({ size }) =>
         loading ? (
-          <ActivityIndicator size={20} color={color} />
+          <ActivityIndicator size={20} color={optimisticFollowing ? colors.text : colors.background} />
         ) : (
-          <Ionicons name={buttonIcon} size={size} color={color} />
+          <Ionicons name={buttonIcon} size={size} color={optimisticFollowing ? colors.text : colors.background} />
         )
       }
     >
@@ -166,16 +165,11 @@ const FollowButton: React.FC<FollowButtonProps> = ({
 const styles = StyleSheet.create({
   button: {
     borderRadius: 8,
+    borderWidth: 1,
   },
   compactButton: {
     borderRadius: 6,
     paddingVertical: 0,
-  },
-  followButton: {
-    backgroundColor: '#6200ee',
-  },
-  followingButton: {
-    borderColor: '#6200ee',
     borderWidth: 1,
   },
   label: {

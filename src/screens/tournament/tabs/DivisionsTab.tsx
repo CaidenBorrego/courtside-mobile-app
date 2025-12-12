@@ -7,6 +7,7 @@ import { firebaseService } from '../../../services/firebase';
 import { Division, Game } from '../../../types';
 import Button from '../../../components/common/Button';
 import FollowButton from '../../../components/common/FollowButton';
+import TeamImage from '../../../components/common/TeamImage';
 
 interface DivisionsTabProps {
   tournamentId: string;
@@ -109,7 +110,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
               <View style={styles.expandedContent}>
                 {gamesLoading ? (
                   <View style={styles.loadingTeams}>
-                    <ActivityIndicator size="small" color="#6200ee" />
+                    <ActivityIndicator size="small" color="#000000" />
                     <Text variant="bodySmall" style={styles.loadingTeamsText}>
                       Loading teams...
                     </Text>
@@ -118,7 +119,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
                   <>
                     <Divider style={styles.divider} />
                     <View style={styles.teamsHeader}>
-                      <Ionicons name="people" size={20} color="#6200ee" />
+                      <Ionicons name="people" size={20} color="#000000" />
                       <Text variant="titleSmall" style={styles.teamsTitle}>
                         Teams ({teams.length})
                       </Text>
@@ -133,7 +134,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
                           <View key={`${team}-${index}`}>
                             <View style={styles.teamItem}>
                               <View style={styles.teamInfo}>
-                                <Ionicons name="basketball" size={16} color="#6200ee" />
+                                <TeamImage teamName={team} size={32} />
                                 <Text variant="bodyMedium" style={styles.teamName}>
                                   {team}
                                 </Text>
@@ -181,7 +182,7 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
@@ -223,13 +224,13 @@ const DivisionsTab: React.FC<DivisionsTabProps> = ({ tournamentId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   listContainer: {
     padding: 16,
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
   },
   divisionCard: {
     marginBottom: 12,
@@ -253,7 +254,7 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#6200ee',
+    borderColor: '#000000',
   },
   divisionHeader: {
     flexDirection: 'row',
@@ -266,7 +267,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   chip: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#F9FAFB',
   },
   chipText: {
     fontSize: 12,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   infoText: {
-    color: '#757575',
+    color: '#6B7280',
   },
   expandedContent: {
     marginTop: 12,
@@ -290,7 +291,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadingTeamsText: {
-    color: '#757575',
+    color: '#6B7280',
   },
   divider: {
     marginVertical: 8,
@@ -303,10 +304,10 @@ const styles = StyleSheet.create({
   },
   teamsTitle: {
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#000000',
   },
   noTeamsText: {
-    color: '#757575',
+    color: '#6B7280',
     fontStyle: 'italic',
     paddingVertical: 8,
   },
@@ -339,7 +340,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e0e0e0',
   },
   gamesCountText: {
-    color: '#757575',
+    color: '#6B7280',
     fontSize: 12,
   },
   errorContainer: {
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   errorTitle: {
     marginBottom: 8,
@@ -355,7 +356,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
     marginBottom: 16,
   },
   retryButton: {

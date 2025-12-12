@@ -1,16 +1,21 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Text } from 'react-native-paper';
 import { Tournament, TournamentStatus } from '../../types';
 import { format } from 'date-fns';
 import { getTournamentDisplayStatus } from '../../utils/tournamentStatus';
+import { useTheme } from '../../hooks/useTheme';
 
 interface TournamentCardProps {
   tournament: Tournament;
   onPress: (tournamentId: string) => void;
 }
 
+const DEFAULT_TOURNAMENT_IMAGE = 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&h=300&fit=crop';
+
 const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) => {
+  const { colors } = useTheme();
+
   const formatDate = (timestamp: any) => {
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -20,32 +25,18 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
     }
   };
 
-  // Get the actual display status (computed from dates or admin override)
   const displayStatus = getTournamentDisplayStatus(tournament);
-
-  const getStatusColor = (status: TournamentStatus) => {
-    switch (status) {
-      case TournamentStatus.ACTIVE:
-        return '#4caf50';
-      case TournamentStatus.UPCOMING:
-        return '#2196f3';
-      case TournamentStatus.COMPLETED:
-        return '#9e9e9e';
-      default:
-        return '#757575';
-    }
-  };
 
   const getStatusLabel = (status: TournamentStatus) => {
     switch (status) {
       case TournamentStatus.ACTIVE:
-        return 'Active';
+        return 'LIVE';
       case TournamentStatus.UPCOMING:
-        return 'Upcoming';
+        return 'UPCOMING';
       case TournamentStatus.COMPLETED:
-        return 'Completed';
+        return 'COMPLETED';
       default:
-        return status;
+        return String(status).toUpperCase();
     }
   };
 
@@ -53,80 +44,78 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
     <TouchableOpacity 
       onPress={() => onPress(tournament.id)}
       activeOpacity={0.7}
+      style={styles.touchable}
     >
-      <Card style={styles.card} mode="elevated">
-        <Card.Content>
-          <View style={styles.header}>
-            <Text variant="titleLarge" style={styles.title}>
-              {tournament.name}
-            </Text>
-            <View 
-              style={[
-                styles.statusBadge, 
-                { backgroundColor: getStatusColor(displayStatus) }
-              ]}
-            >
-              <Text style={styles.statusText}>
-                {getStatusLabel(displayStatus)}
-              </Text>
-            </View>
-          </View>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Tournament Image */}
+        <Image
+          source={{ uri: tournament.imageUrl || DEFAULT_TOURNAMENT_IMAGE }}
+          style={[styles.image, { backgroundColor: colors.imagePlaceholder }]}
+          resizeMode="cover"
+        />
+        
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Status Text */}
+          <Text style={[styles.statusText, { color: colors.textSecondary }]}>
+            {getStatusLabel(displayStatus)}
+          </Text>
+
+          {/* Tournament Name */}
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+            {tournament.name}
+          </Text>
           
-          <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.location}>
-              📍 {tournament.city}, {tournament.state}
-            </Text>
-          </View>
+          {/* Location */}
+          <Text style={[styles.location, { color: colors.textSecondary }]} numberOfLines={1}>
+            {tournament.city}, {tournament.state}
+          </Text>
           
-          <View style={styles.dateRow}>
-            <Text variant="bodySmall" style={styles.dateText}>
-              {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
-            </Text>
-          </View>
-        </Card.Content>
-      </Card>
+          {/* Dates */}
+          <Text style={[styles.dates, { color: colors.textTertiary }]}>
+            {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+          </Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
+  touchable: {
     marginHorizontal: 16,
     marginVertical: 8,
-    elevation: 2,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  card: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  image: {
+    width: '100%',
+    height: 180,
+  },
+  content: {
+    padding: 16,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
     marginBottom: 8,
   },
   title: {
-    flex: 1,
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
+    fontSize: 18,
     fontWeight: '600',
-  },
-  infoRow: {
-    marginBottom: 4,
+    marginBottom: 8,
+    lineHeight: 24,
   },
   location: {
-    color: '#424242',
+    fontSize: 14,
+    marginBottom: 4,
   },
-  dateRow: {
-    marginTop: 4,
-  },
-  dateText: {
-    color: '#757575',
+  dates: {
+    fontSize: 13,
   },
 });
 

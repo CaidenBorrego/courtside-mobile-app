@@ -12,7 +12,7 @@ const ProfileNavigator: React.FC = () => {
       screenOptions={{
         headerShown: true,
         headerStyle: {
-          backgroundColor: '#6200ee',
+          backgroundColor: '#000000',
         },
         headerTintColor: '#fff',
         headerTitleStyle: {

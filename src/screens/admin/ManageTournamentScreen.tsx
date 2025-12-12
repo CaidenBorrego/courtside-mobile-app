@@ -280,7 +280,7 @@ const ManageTournamentScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
@@ -537,28 +537,28 @@ const ManageTournamentScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   header: {
     padding: 16,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
   },
   headerTitle: {
     color: '#fff',
     marginBottom: 4,
   },
   headerSubtitle: {
-    color: '#e1bee7',
+    color: '#F3F4F6',
   },
   segmentedButtons: {
     margin: 16,
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 8,
-    color: '#757575',
+    color: '#6B7280',
     textAlign: 'center',
   },
   card: {
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
   },
   cardDetail: {
     marginTop: 4,
-    color: '#757575',
+    color: '#6B7280',
   },
   dialog: {
     maxHeight: '80%',
@@ -593,14 +593,14 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     marginBottom: 8,
-    color: '#757575',
+    color: '#6B7280',
   },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
   },
 });
 

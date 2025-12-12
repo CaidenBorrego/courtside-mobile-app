@@ -168,7 +168,7 @@ const AdminPanelScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading tournaments...</Text>
       </View>
     );
@@ -317,14 +317,14 @@ const AdminPanelScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   accessDeniedContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   accessDeniedTitle: {
     marginBottom: 16,
@@ -333,31 +333,31 @@ const styles = StyleSheet.create({
   },
   accessDeniedText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   scrollView: {
     flex: 1,
   },
   header: {
     padding: 20,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
   },
   headerTitle: {
     color: '#fff',
     marginBottom: 8,
   },
   headerSubtitle: {
-    color: '#e1bee7',
+    color: '#F3F4F6',
   },
   quickActions: {
     padding: 16,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     marginTop: 8,
-    color: '#757575',
+    color: '#6B7280',
     textAlign: 'center',
   },
   tournamentCard: {
@@ -380,15 +380,15 @@ const styles = StyleSheet.create({
   },
   tournamentLocation: {
     marginTop: 8,
-    color: '#757575',
+    color: '#6B7280',
   },
   tournamentDates: {
     marginTop: 4,
-    color: '#9e9e9e',
+    color: '#9CA3AF',
   },
   tournamentStatus: {
     marginTop: 4,
-    color: '#6200ee',
+    color: '#000000',
     textTransform: 'capitalize',
   },
   dialog: {
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
   },
 });
 

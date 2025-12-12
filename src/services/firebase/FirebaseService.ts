@@ -36,6 +36,8 @@ import {
   UpdateUserProfileData,
   TournamentStatus,
 } from '../../types';
+import { retryWithBackoff, categorizeError } from '../../utils/errorHandling';
+import { cacheData, getCachedData, CacheKeys } from '../../utils/cache';
 
 export class FirebaseService {
   // Collection references
@@ -47,23 +49,69 @@ export class FirebaseService {
 
   // Tournament operations
   async getTournaments(): Promise<Tournament[]> {
-    try {
-      const q = query(
-        this.tournamentsCollection,
-        orderBy('startDate', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Tournament));
-    } catch (error) {
-      console.error('Error fetching tournaments:', error);
-      throw new Error('Failed to fetch tournaments');
-    }
+    return retryWithBackoff(async () => {
+      try {
+        const q = query(
+          this.tournamentsCollection,
+          orderBy('startDate', 'desc')
+        );
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Tournament));
+      } catch (error) {
+        const appError = categorizeError(error);
+        console.error('Error fetching tournaments:', appError);
+        throw new Error(appError.message);
+      }
+    });
   }
 
-  async getActiveTournaments(): Promise<Tournament[]> {
+  async getActiveTournaments(useCache: boolean = true): Promise<Tournament[]> {
+    // Try cache first if enabled
+    if (useCache) {
+      const cached = await getCachedData<Tournament[]>(CacheKeys.TOURNAMENTS);
+      if (cached) {
+        // Return cached data and fetch fresh data in background
+        this.refreshActiveTournamentsCache();
+        return cached;
+      }
+    }
+
+    return retryWithBackoff(async () => {
+      try {
+        const q = query(
+          this.tournamentsCollection,
+          where('status', 'in', [TournamentStatus.UPCOMING, TournamentStatus.ACTIVE]),
+          orderBy('startDate', 'asc')
+        );
+        const querySnapshot = await getDocs(q);
+        const tournaments = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Tournament));
+        
+        // Cache the results
+        await cacheData(CacheKeys.TOURNAMENTS, tournaments, { expiryMinutes: 30 });
+        
+        return tournaments;
+      } catch (error) {
+        const appError = categorizeError(error);
+        console.error('Error fetching active tournaments:', appError);
+        
+        // Try to return cached data on error
+        const cached = await getCachedData<Tournament[]>(CacheKeys.TOURNAMENTS);
+        if (cached) {
+          return cached;
+        }
+        
+        throw new Error(appError.message);
+      }
+    });
+  }
+
+  private async refreshActiveTournamentsCache(): Promise<void> {
     try {
       const q = query(
         this.tournamentsCollection,
@@ -71,33 +119,38 @@ export class FirebaseService {
         orderBy('startDate', 'asc')
       );
       const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
+      const tournaments = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Tournament));
+      
+      await cacheData(CacheKeys.TOURNAMENTS, tournaments, { expiryMinutes: 30 });
     } catch (error) {
-      console.error('Error fetching active tournaments:', error);
-      throw new Error('Failed to fetch active tournaments');
+      // Silently fail background refresh
+      console.log('Background cache refresh failed:', error);
     }
   }
 
   async getTournament(id: string): Promise<Tournament> {
-    try {
-      const docRef = doc(this.tournamentsCollection, id);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        throw new Error('Tournament not found');
+    return retryWithBackoff(async () => {
+      try {
+        const docRef = doc(this.tournamentsCollection, id);
+        const docSnap = await getDoc(docRef);
+        
+        if (!docSnap.exists()) {
+          throw new Error('Tournament not found');
+        }
+        
+        return {
+          id: docSnap.id,
+          ...docSnap.data()
+        } as Tournament;
+      } catch (error) {
+        const appError = categorizeError(error);
+        console.error('Error fetching tournament:', appError);
+        throw new Error(appError.message);
       }
-      
-      return {
-        id: docSnap.id,
-        ...docSnap.data()
-      } as Tournament;
-    } catch (error) {
-      console.error('Error fetching tournament:', error);
-      throw new Error('Failed to fetch tournament');
-    }
+    });
   }
 
   async createTournament(tournamentData: CreateTournamentData): Promise<string> {

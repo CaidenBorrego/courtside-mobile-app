@@ -122,11 +122,11 @@ const GameDetailScreen: React.FC = () => {
       case GameStatus.IN_PROGRESS:
         return '#4CAF50';
       case GameStatus.COMPLETED:
-        return '#757575';
+        return '#6B7280';
       case GameStatus.CANCELLED:
         return '#F44336';
       default:
-        return '#757575';
+        return '#6B7280';
     }
   };
 
@@ -163,7 +163,7 @@ const GameDetailScreen: React.FC = () => {
     console.log('🎮 Rendering loading state');
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading game details...</Text>
       </View>
     );
@@ -304,24 +304,24 @@ const GameDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   errorTitle: {
     textAlign: 'center',
@@ -356,12 +356,12 @@ const styles = StyleSheet.create({
   },
   score: {
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#000000',
     marginLeft: 16,
   },
   vs: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
     marginVertical: 8,
   },
   infoRow: {
@@ -385,7 +385,7 @@ const styles = StyleSheet.create({
   },
   address: {
     marginLeft: 88,
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 4,
   },
   mapsButton: {

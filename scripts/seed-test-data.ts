@@ -4,7 +4,8 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, Timestamp, doc, setDoc } from 'firebase/firestore';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 // Load environment variables
 import * as dotenv from 'dotenv';
@@ -23,12 +24,90 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+
+async function createTestUsers() {
+  console.log('👥 Creating test user accounts...');
+  
+  const testUsers = [
+    {
+      email: 'admin@courtside.test',
+      password: 'Admin123!',
+      displayName: 'Admin User',
+      role: 'admin',
+    },
+    {
+      email: 'scorekeeper@courtside.test',
+      password: 'Score123!',
+      displayName: 'Scorekeeper User',
+      role: 'scorekeeper',
+    },
+    {
+      email: 'user@courtside.test',
+      password: 'User123!',
+      displayName: 'Regular User',
+      role: 'user',
+    },
+  ];
+
+  const createdUsers: Array<{ uid: string; email: string; role: string }> = [];
+
+  for (const userData of testUsers) {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        userData.email,
+        userData.password
+      );
+
+      await updateProfile(userCredential.user, {
+        displayName: userData.displayName,
+      });
+
+      const userProfile = {
+        id: userCredential.user.uid,
+        email: userData.email,
+        displayName: userData.displayName,
+        role: userData.role,
+        followingTeams: [],
+        followingGames: [],
+        notificationsEnabled: true,
+        createdAt: Timestamp.now(),
+        lastActive: Timestamp.now(),
+      };
+
+      await setDoc(doc(db, 'users', userCredential.user.uid), userProfile);
+
+      createdUsers.push({
+        uid: userCredential.user.uid,
+        email: userData.email,
+        role: userData.role,
+      });
+
+      console.log(`✅ Created ${userData.role}: ${userData.email}`);
+    } catch (error: any) {
+      if (error.code === 'auth/email-already-in-use') {
+        console.log(`⚠️  User already exists: ${userData.email}`);
+      } else {
+        console.error(`❌ Error creating user ${userData.email}:`, error.message);
+      }
+    }
+  }
+
+  return createdUsers;
+}
 
 async function seedTestData() {
   console.log('🌱 Starting to seed test data...\n');
 
   try {
-    // Create test tournaments
+    // Create test users first
+    const users = await createTestUsers();
+    const adminUid = users.find(u => u.role === 'admin')?.uid || 'admin';
+
+    console.log('\n📝 Creating tournaments...');
+    
+    // Create test tournaments with more variety
     const tournaments = [
       {
         name: 'Summer Basketball Championship 2024',
@@ -37,7 +116,7 @@ async function seedTestData() {
         city: 'Los Angeles',
         state: 'CA',
         status: 'active',
-        createdBy: 'admin',
+        createdBy: adminUid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
@@ -48,7 +127,7 @@ async function seedTestData() {
         city: 'San Diego',
         state: 'CA',
         status: 'upcoming',
-        createdBy: 'admin',
+        createdBy: adminUid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
@@ -59,13 +138,34 @@ async function seedTestData() {
         city: 'San Francisco',
         state: 'CA',
         status: 'upcoming',
-        createdBy: 'admin',
+        createdBy: adminUid,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        name: 'Spring Showcase Tournament',
+        startDate: Timestamp.fromDate(new Date('2025-03-20')),
+        endDate: Timestamp.fromDate(new Date('2025-03-24')),
+        city: 'Sacramento',
+        state: 'CA',
+        status: 'upcoming',
+        createdBy: adminUid,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        name: 'Elite Youth Basketball League Finals',
+        startDate: Timestamp.fromDate(new Date('2024-06-01')),
+        endDate: Timestamp.fromDate(new Date('2024-06-05')),
+        city: 'Oakland',
+        state: 'CA',
+        status: 'completed',
+        createdBy: adminUid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
     ];
 
-    console.log('📝 Creating tournaments...');
     const tournamentIds: string[] = [];
     
     for (const tournament of tournaments) {
@@ -74,9 +174,10 @@ async function seedTestData() {
       console.log(`✅ Created tournament: ${tournament.name} (ID: ${docRef.id})`);
     }
 
-    // Create divisions for the first tournament
+    // Create divisions for multiple tournaments
     console.log('\n📝 Creating divisions...');
     const divisions = [
+      // Summer Championship divisions
       {
         tournamentId: tournamentIds[0],
         name: 'Boys 14U',
@@ -104,6 +205,34 @@ async function seedTestData() {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
+      {
+        tournamentId: tournamentIds[0],
+        name: 'Girls 14U',
+        ageGroup: '14U',
+        gender: 'female',
+        skillLevel: 'Recreational',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Fall Classic divisions
+      {
+        tournamentId: tournamentIds[1],
+        name: 'Boys 12U',
+        ageGroup: '12U',
+        gender: 'male',
+        skillLevel: 'Competitive',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        tournamentId: tournamentIds[1],
+        name: 'Girls 18U',
+        ageGroup: '18U',
+        gender: 'female',
+        skillLevel: 'Elite',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
     ];
 
     const divisionIds: string[] = [];
@@ -114,7 +243,7 @@ async function seedTestData() {
       console.log(`✅ Created division: ${division.name} (ID: ${docRef.id})`);
     }
 
-    // Create locations
+    // Create locations with more variety
     console.log('\n📝 Creating locations...');
     const locations = [
       {
@@ -141,6 +270,42 @@ async function seedTestData() {
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
+      {
+        name: 'Lakeside Basketball Arena',
+        address: '789 Lake Drive',
+        city: 'Los Angeles',
+        state: 'CA',
+        coordinates: {
+          latitude: 34.0736,
+          longitude: -118.2400,
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        name: 'Pacific Coast Gymnasium',
+        address: '321 Ocean Boulevard',
+        city: 'San Diego',
+        state: 'CA',
+        coordinates: {
+          latitude: 32.7157,
+          longitude: -117.1611,
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        name: 'Golden Gate Sports Center',
+        address: '555 Bay Street',
+        city: 'San Francisco',
+        state: 'CA',
+        coordinates: {
+          latitude: 37.7749,
+          longitude: -122.4194,
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
     ];
 
     const locationIds: string[] = [];
@@ -151,14 +316,22 @@ async function seedTestData() {
       console.log(`✅ Created location: ${location.name} (ID: ${docRef.id})`);
     }
 
-    // Create games for the first division
+    // Create games with realistic variety
     console.log('\n📝 Creating games...');
+    const teamNames = [
+      'Lakers Youth', 'Warriors Academy', 'Clippers Elite', 'Kings Basketball',
+      'Phoenix Rising', 'Suns Academy', 'Mavericks Select', 'Rockets Elite',
+      'Thunder Youth', 'Blazers Academy', 'Spurs Select', 'Nuggets Elite',
+      'Heat Rising', 'Celtics Academy', 'Bulls Select', 'Nets Elite'
+    ];
+
     const games = [
+      // Summer Championship - Boys 14U (scheduled)
       {
         tournamentId: tournamentIds[0],
         divisionId: divisionIds[0],
-        teamA: 'Lakers Youth',
-        teamB: 'Warriors Academy',
+        teamA: teamNames[0],
+        teamB: teamNames[1],
         scoreA: 0,
         scoreB: 0,
         startTime: Timestamp.fromDate(new Date('2024-07-15T10:00:00')),
@@ -170,8 +343,8 @@ async function seedTestData() {
       {
         tournamentId: tournamentIds[0],
         divisionId: divisionIds[0],
-        teamA: 'Clippers Elite',
-        teamB: 'Kings Basketball',
+        teamA: teamNames[2],
+        teamB: teamNames[3],
         scoreA: 0,
         scoreB: 0,
         startTime: Timestamp.fromDate(new Date('2024-07-15T12:00:00')),
@@ -182,14 +355,123 @@ async function seedTestData() {
       },
       {
         tournamentId: tournamentIds[0],
+        divisionId: divisionIds[0],
+        teamA: teamNames[6],
+        teamB: teamNames[7],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-07-15T14:00:00')),
+        locationId: locationIds[2],
+        status: 'scheduled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Summer Championship - Girls 16U (in progress and completed)
+      {
+        tournamentId: tournamentIds[0],
         divisionId: divisionIds[1],
-        teamA: 'Phoenix Rising',
-        teamB: 'Suns Academy',
+        teamA: teamNames[4],
+        teamB: teamNames[5],
         scoreA: 65,
         scoreB: 58,
         startTime: Timestamp.fromDate(new Date('2024-07-15T09:00:00')),
         locationId: locationIds[0],
         status: 'completed',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        tournamentId: tournamentIds[0],
+        divisionId: divisionIds[1],
+        teamA: teamNames[12],
+        teamB: teamNames[13],
+        scoreA: 42,
+        scoreB: 38,
+        startTime: Timestamp.fromDate(new Date('2024-07-15T11:00:00')),
+        locationId: locationIds[1],
+        status: 'in_progress',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Summer Championship - Boys 18U
+      {
+        tournamentId: tournamentIds[0],
+        divisionId: divisionIds[2],
+        teamA: teamNames[8],
+        teamB: teamNames[9],
+        scoreA: 78,
+        scoreB: 72,
+        startTime: Timestamp.fromDate(new Date('2024-07-15T08:00:00')),
+        locationId: locationIds[2],
+        status: 'completed',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        tournamentId: tournamentIds[0],
+        divisionId: divisionIds[2],
+        teamA: teamNames[10],
+        teamB: teamNames[11],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-07-15T16:00:00')),
+        locationId: locationIds[0],
+        status: 'scheduled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Summer Championship - Girls 14U
+      {
+        tournamentId: tournamentIds[0],
+        divisionId: divisionIds[3],
+        teamA: teamNames[14],
+        teamB: teamNames[15],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-07-15T13:00:00')),
+        locationId: locationIds[1],
+        status: 'scheduled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Fall Classic - Boys 12U
+      {
+        tournamentId: tournamentIds[1],
+        divisionId: divisionIds[4],
+        teamA: teamNames[0],
+        teamB: teamNames[3],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-09-10T10:00:00')),
+        locationId: locationIds[3],
+        status: 'scheduled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      {
+        tournamentId: tournamentIds[1],
+        divisionId: divisionIds[4],
+        teamA: teamNames[6],
+        teamB: teamNames[9],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-09-10T12:00:00')),
+        locationId: locationIds[3],
+        status: 'scheduled',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      },
+      // Fall Classic - Girls 18U
+      {
+        tournamentId: tournamentIds[1],
+        divisionId: divisionIds[5],
+        teamA: teamNames[12],
+        teamB: teamNames[15],
+        scoreA: 0,
+        scoreB: 0,
+        startTime: Timestamp.fromDate(new Date('2024-09-10T14:00:00')),
+        locationId: locationIds[3],
+        status: 'scheduled',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       },
@@ -202,10 +484,15 @@ async function seedTestData() {
 
     console.log('\n✨ Test data seeded successfully!');
     console.log('\n📊 Summary:');
+    console.log(`   - ${users.length} user accounts`);
     console.log(`   - ${tournaments.length} tournaments`);
     console.log(`   - ${divisions.length} divisions`);
     console.log(`   - ${locations.length} locations`);
     console.log(`   - ${games.length} games`);
+    console.log('\n🔐 Test User Credentials:');
+    console.log('   Admin: admin@courtside.test / Admin123!');
+    console.log('   Scorekeeper: scorekeeper@courtside.test / Score123!');
+    console.log('   User: user@courtside.test / User123!');
     
   } catch (error) {
     console.error('❌ Error seeding data:', error);

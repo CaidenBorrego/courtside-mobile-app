@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Text } from 'react-native-paper';
 import { Game, GameStatus } from '../../types';
 import { format } from 'date-fns';
+import { useTheme } from '../../hooks/useTheme';
 import FollowButton from '../common/FollowButton';
 
 interface GameCardProps {
@@ -12,12 +13,16 @@ interface GameCardProps {
   showFollowButton?: boolean;
 }
 
+const DEFAULT_TEAM_IMAGE = 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=200&h=200&fit=crop';
+
 const GameCard: React.FC<GameCardProps> = ({ 
   game, 
   onPress, 
   showLocation = true,
   showFollowButton = true
 }) => {
+  const { colors } = useTheme();
+
   const formatTime = (timestamp: any) => {
     try {
       const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -27,33 +32,18 @@ const GameCard: React.FC<GameCardProps> = ({
     }
   };
 
-  const getStatusColor = (status: GameStatus) => {
-    switch (status) {
-      case GameStatus.IN_PROGRESS:
-        return '#4caf50';
-      case GameStatus.SCHEDULED:
-        return '#2196f3';
-      case GameStatus.COMPLETED:
-        return '#9e9e9e';
-      case GameStatus.CANCELLED:
-        return '#f44336';
-      default:
-        return '#757575';
-    }
-  };
-
   const getStatusLabel = (status: GameStatus) => {
     switch (status) {
       case GameStatus.IN_PROGRESS:
-        return 'Live';
+        return 'LIVE';
       case GameStatus.SCHEDULED:
-        return 'Scheduled';
+        return 'SCHEDULED';
       case GameStatus.COMPLETED:
-        return 'Final';
+        return 'FINAL';
       case GameStatus.CANCELLED:
-        return 'Cancelled';
+        return 'CANCELLED';
       default:
-        return status;
+        return String(status).toUpperCase();
     }
   };
 
@@ -61,18 +51,18 @@ const GameCard: React.FC<GameCardProps> = ({
     if (game.status === GameStatus.SCHEDULED) {
       return (
         <View style={styles.scoreContainer}>
-          <Text variant="bodyMedium" style={styles.vsText}>vs</Text>
+          <Text style={[styles.vsText, { color: colors.textTertiary }]}>VS</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.scoreContainer}>
-        <Text variant="headlineSmall" style={styles.score}>
+        <Text style={[styles.score, { color: colors.text }]}>
           {game.scoreA}
         </Text>
-        <Text variant="bodyMedium" style={styles.scoreSeparator}>-</Text>
-        <Text variant="headlineSmall" style={styles.score}>
+        <Text style={[styles.scoreSeparator, { color: colors.textTertiary }]}>-</Text>
+        <Text style={[styles.score, { color: colors.text }]}>
           {game.scoreB}
         </Text>
       </View>
@@ -80,72 +70,75 @@ const GameCard: React.FC<GameCardProps> = ({
   };
 
   const cardContent = (
-    <Card style={styles.card} mode="elevated">
-      <Card.Content>
-        <View style={styles.header}>
-          <Text variant="bodySmall" style={styles.timeText}>
-            {formatTime(game.startTime)}
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+          {formatTime(game.startTime)}
+        </Text>
+        <View style={[styles.statusBadge, { backgroundColor: colors.backgroundSecondary }]}>
+          <Text style={[styles.statusText, { color: colors.text }]}>
+            {getStatusLabel(game.status)}
           </Text>
-          <View 
+        </View>
+      </View>
+
+      {/* Teams */}
+      <View style={styles.teamsContainer}>
+        {/* Team A */}
+        <View style={styles.teamSection}>
+          <Image
+            source={{ uri: game.teamAImageUrl || DEFAULT_TEAM_IMAGE }}
+            style={[styles.teamImage, { backgroundColor: colors.imagePlaceholder }]}
+            resizeMode="cover"
+          />
+          <Text 
             style={[
-              styles.statusBadge, 
-              { backgroundColor: getStatusColor(game.status) }
+              styles.teamName,
+              { color: colors.text },
+              game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText
             ]}
+            numberOfLines={2}
           >
-            <Text style={styles.statusText}>
-              {getStatusLabel(game.status)}
-            </Text>
-          </View>
+            {game.teamA}
+          </Text>
         </View>
 
-        <View style={styles.teamsContainer}>
-          <View style={styles.teamRow}>
-            <Text 
-              variant="titleMedium" 
-              style={[
-                styles.teamName,
-                game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText
-              ]}
-            >
-              {game.teamA}
-            </Text>
-          </View>
+        {/* Score/VS */}
+        {renderScore()}
 
-          {renderScore()}
-
-          <View style={styles.teamRow}>
-            <Text 
-              variant="titleMedium" 
-              style={[
-                styles.teamName,
-                game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText
-              ]}
-            >
-              {game.teamB}
-            </Text>
-          </View>
+        {/* Team B */}
+        <View style={styles.teamSection}>
+          <Image
+            source={{ uri: game.teamBImageUrl || DEFAULT_TEAM_IMAGE }}
+            style={[styles.teamImage, { backgroundColor: colors.imagePlaceholder }]}
+            resizeMode="cover"
+          />
+          <Text 
+            style={[
+              styles.teamName,
+              { color: colors.text },
+              game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText
+            ]}
+            numberOfLines={2}
+          >
+            {game.teamB}
+          </Text>
         </View>
+      </View>
 
-        {showLocation && game.locationId && (
-          <View style={styles.locationRow}>
-            <Text variant="bodySmall" style={styles.locationText}>
-              📍 Location ID: {game.locationId}
-            </Text>
-          </View>
-        )}
-
-        {showFollowButton && (
-          <View style={styles.followButtonContainer}>
-            <FollowButton
-              itemId={game.id}
-              itemType="game"
-              itemName={`${game.teamA} vs ${game.teamB}`}
-              compact
-            />
-          </View>
-        )}
-      </Card.Content>
-    </Card>
+      {/* Follow Button */}
+      {showFollowButton && (
+        <View style={styles.followButtonContainer}>
+          <FollowButton
+            itemId={game.id}
+            itemType="game"
+            itemName={`${game.teamA} vs ${game.teamB}`}
+            compact
+          />
+        </View>
+      )}
+    </View>
   );
 
   if (onPress) {
@@ -153,86 +146,91 @@ const GameCard: React.FC<GameCardProps> = ({
       <TouchableOpacity 
         onPress={() => onPress(game.id)}
         activeOpacity={0.7}
+        style={styles.touchable}
       >
         {cardContent}
       </TouchableOpacity>
     );
   }
 
-  return cardContent;
+  return <View style={styles.touchable}>{cardContent}</View>;
 };
 
 const styles = StyleSheet.create({
-  card: {
+  touchable: {
     marginHorizontal: 16,
     marginVertical: 8,
-    elevation: 2,
+  },
+  card: {
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   timeText: {
-    color: '#757575',
+    fontSize: 13,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 4,
   },
   statusText: {
-    color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    letterSpacing: 0.5,
   },
   teamsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  teamSection: {
+    flex: 1,
     alignItems: 'center',
   },
-  teamRow: {
-    width: '100%',
-    alignItems: 'center',
-    marginVertical: 4,
+  teamImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
   },
   teamName: {
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     textAlign: 'center',
   },
   winnerText: {
-    fontWeight: 'bold',
-    color: '#6200ee',
+    fontWeight: '700',
   },
   scoreContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 8,
+    paddingHorizontal: 16,
   },
   score: {
-    fontWeight: 'bold',
-    color: '#424242',
+    fontSize: 24,
+    fontWeight: '700',
   },
   scoreSeparator: {
-    marginHorizontal: 12,
-    color: '#757575',
+    fontSize: 18,
+    marginVertical: 4,
   },
   vsText: {
-    color: '#757575',
-    fontStyle: 'italic',
-  },
-  locationRow: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-  },
-  locationText: {
-    color: '#757575',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   followButtonContainer: {
-    marginTop: 12,
-    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
 });
 

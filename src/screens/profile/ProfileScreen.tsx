@@ -14,6 +14,7 @@ import { userProfileService } from '../../services/user/UserProfileService';
 import { firebaseService } from '../../services/firebase';
 import { Game, ProfileStackParamList } from '../../types';
 import Button from '../../components/common/Button';
+import TeamImage from '../../components/common/TeamImage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
@@ -180,7 +181,7 @@ const ProfileScreen: React.FC = () => {
   if (!user || !userProfile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </View>
     );
@@ -193,7 +194,7 @@ const ProfileScreen: React.FC = () => {
         <Card.Content>
           <View style={styles.userInfoContainer}>
             <View style={styles.avatarContainer}>
-              <Ionicons name="person-circle-outline" size={80} color="#6200ee" />
+              <Ionicons name="person-circle-outline" size={80} color="#000000" />
             </View>
             <Text variant="headlineSmall" style={styles.displayName}>
               {userProfile.displayName}
@@ -227,7 +228,7 @@ const ProfileScreen: React.FC = () => {
               value={notificationsEnabled}
               onValueChange={handleToggleNotifications}
               disabled={loading}
-              color="#6200ee"
+              color="#000000"
             />
           </View>
         </Card.Content>
@@ -273,7 +274,7 @@ const ProfileScreen: React.FC = () => {
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('SearchTeams')}
               >
-                <Ionicons name="add-circle-outline" size={20} color="#6200ee" />
+                <Ionicons name="add-circle-outline" size={20} color="#000000" />
                 <Text style={styles.actionButtonText}>Find</Text>
               </TouchableOpacity>
               {userProfile.followingTeams.length > 0 && (
@@ -281,7 +282,7 @@ const ProfileScreen: React.FC = () => {
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('ManageTeams')}
                 >
-                  <Ionicons name="settings-outline" size={20} color="#6200ee" />
+                  <Ionicons name="settings-outline" size={20} color="#000000" />
                   <Text style={styles.actionButtonText}>Manage</Text>
                 </TouchableOpacity>
               )}
@@ -289,7 +290,7 @@ const ProfileScreen: React.FC = () => {
           </View>
           {userProfile.followingTeams.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="basketball-outline" size={48} color="#bdbdbd" />
+              <Ionicons name="basketball-outline" size={48} color="#D1D5DB" />
               <Text variant="bodyMedium" style={styles.emptyText}>
                 No teams followed yet
               </Text>
@@ -309,7 +310,7 @@ const ProfileScreen: React.FC = () => {
                     onPress={() => handleUnfollowTeam(team)}
                   >
                     <View style={styles.listItemContent}>
-                      <Ionicons name="people-outline" size={24} color="#6200ee" />
+                      <TeamImage teamName={team} size={40} />
                       <Text variant="bodyLarge" style={styles.listItemText}>
                         {team}
                       </Text>
@@ -327,7 +328,7 @@ const ProfileScreen: React.FC = () => {
                   <Text style={styles.viewAllText}>
                     View all {userProfile.followingTeams.length} teams
                   </Text>
-                  <Ionicons name="chevron-forward" size={20} color="#6200ee" />
+                  <Ionicons name="chevron-forward" size={20} color="#000000" />
                 </TouchableOpacity>
               )}
             </View>
@@ -347,18 +348,18 @@ const ProfileScreen: React.FC = () => {
                 style={styles.actionButton}
                 onPress={() => navigation.navigate('ManageGames')}
               >
-                <Ionicons name="settings-outline" size={20} color="#6200ee" />
+                <Ionicons name="settings-outline" size={20} color="#000000" />
                 <Text style={styles.actionButtonText}>Manage</Text>
               </TouchableOpacity>
             )}
           </View>
           {loadingGames ? (
             <View style={styles.loadingState}>
-              <ActivityIndicator size="small" color="#6200ee" />
+              <ActivityIndicator size="small" color="#000000" />
             </View>
           ) : userProfile.followingGames.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="trophy-outline" size={48} color="#bdbdbd" />
+              <Ionicons name="trophy-outline" size={48} color="#D1D5DB" />
               <Text variant="bodyMedium" style={styles.emptyText}>
                 No games followed yet
               </Text>
@@ -377,7 +378,7 @@ const ProfileScreen: React.FC = () => {
                     }
                   >
                     <View style={styles.listItemContent}>
-                      <Ionicons name="basketball-outline" size={24} color="#6200ee" />
+                      <Ionicons name="basketball-outline" size={24} color="#000000" />
                       <View style={styles.gameInfo}>
                         <Text variant="bodyLarge" style={styles.listItemText}>
                           {game.teamA} vs {game.teamB}
@@ -400,7 +401,7 @@ const ProfileScreen: React.FC = () => {
                   <Text style={styles.viewAllText}>
                     View all {followedGamesData.length} games
                   </Text>
-                  <Ionicons name="chevron-forward" size={20} color="#6200ee" />
+                  <Ionicons name="chevron-forward" size={20} color="#000000" />
                 </TouchableOpacity>
               )}
             </View>
@@ -423,7 +424,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     padding: 16,
@@ -433,11 +434,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   card: {
     marginBottom: 16,
@@ -455,17 +456,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   email: {
-    color: '#757575',
+    color: '#6B7280',
     marginBottom: 12,
   },
   roleContainer: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#F9FAFB',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 12,
   },
   roleText: {
-    color: '#1976d2',
+    color: '#000000',
     fontWeight: 'bold',
   },
   sectionHeader: {
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionButtonText: {
-    color: '#6200ee',
+    color: '#000000',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   settingDescription: {
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 4,
   },
   statsContainer: {
@@ -518,10 +519,10 @@ const styles = StyleSheet.create({
   },
   statNumber: {
     fontWeight: 'bold',
-    color: '#6200ee',
+    color: '#000000',
   },
   statLabel: {
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 4,
   },
   statDivider: {
@@ -533,11 +534,11 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   emptyText: {
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 8,
   },
   emptyHint: {
-    color: '#9e9e9e',
+    color: '#9CA3AF',
     marginTop: 4,
     fontSize: 12,
   },
@@ -545,7 +546,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
     borderRadius: 8,
   },
   emptyActionText: {
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   viewAllText: {
-    color: '#6200ee',
+    color: '#000000',
     fontWeight: '600',
     marginRight: 4,
   },
@@ -591,7 +592,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gameScore: {
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 2,
   },
   signOutContainer: {

@@ -176,7 +176,7 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
   if (!user || !userProfile) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
@@ -184,7 +184,7 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
   if (loadingData) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading {type}...</Text>
       </View>
     );
@@ -255,7 +255,7 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
             <Ionicons
               name={isTeamsMode ? 'people-outline' : 'basketball-outline'}
               size={64}
-              color="#bdbdbd"
+              color="#D1D5DB"
             />
             <Text variant="titleMedium" style={styles.emptyTitle}>
               No {type} followed
@@ -266,7 +266,7 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
           </View>
         ) : filteredItems.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color="#bdbdbd" />
+            <Ionicons name="search-outline" size={64} color="#D1D5DB" />
             <Text variant="titleMedium" style={styles.emptyTitle}>
               No results found
             </Text>
@@ -292,7 +292,7 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
                       <Ionicons
                         name={isTeamsMode ? 'people' : 'basketball'}
                         size={24}
-                        color="#6200ee"
+                        color="#000000"
                         style={styles.itemIcon}
                       />
                       <View style={styles.itemText}>
@@ -321,17 +321,17 @@ const ManageFollowingScreen: React.FC<ManageFollowingScreenProps> = ({ type }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   searchContainer: {
     padding: 16,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   emptyText: {
-    color: '#757575',
+    color: '#6B7280',
     textAlign: 'center',
   },
   itemsCard: {
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gameScore: {
-    color: '#757575',
+    color: '#6B7280',
     marginTop: 2,
   },
 });

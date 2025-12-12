@@ -45,7 +45,7 @@ const RootNavigator: React.FC = () => {
   if (loading || !isReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
@@ -79,7 +79,7 @@ const RootNavigator: React.FC = () => {
                 headerShown: true,
                 title: 'Tournament Details',
                 headerStyle: {
-                  backgroundColor: '#6200ee',
+                  backgroundColor: '#000000',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -94,7 +94,7 @@ const RootNavigator: React.FC = () => {
                 headerShown: true,
                 title: 'Game Details',
                 headerStyle: {
-                  backgroundColor: '#6200ee',
+                  backgroundColor: '#000000',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -109,7 +109,7 @@ const RootNavigator: React.FC = () => {
                 headerShown: true,
                 title: 'Manage Tournament',
                 headerStyle: {
-                  backgroundColor: '#6200ee',
+                  backgroundColor: '#000000',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -124,7 +124,7 @@ const RootNavigator: React.FC = () => {
                 headerShown: true,
                 title: 'Bulk Import',
                 headerStyle: {
-                  backgroundColor: '#6200ee',
+                  backgroundColor: '#000000',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
 });
 

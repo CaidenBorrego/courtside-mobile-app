@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "courtside-mobile-app",
+    "name": "CourtSide",
     "slug": "courtside-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,16 +8,30 @@
     "scheme": "courtside",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "description": "Follow your favorite basketball tournaments, teams, and games with real-time updates and notifications.",
+    "primaryColor": "#1E88E5",
+    "privacy": "public",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.courtside.mobileapp",
+      "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "CourtSide needs your location to show nearby tournaments and provide directions to game venues.",
+        "NSUserTrackingUsageDescription": "This allows us to provide you with personalized tournament recommendations and improve your experience."
       },
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.courtside.mobileapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -30,8 +44,20 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS"
-      ]
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -71,6 +97,12 @@
       "eas": {
         "projectId": "dfb2a363-c625-4c0b-93c7-e9043cd8a992"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/dfb2a363-c625-4c0b-93c7-e9043cd8a992"
     }
   }
 }

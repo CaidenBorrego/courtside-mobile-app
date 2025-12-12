@@ -40,7 +40,7 @@ const TournamentDetailScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading tournament...</Text>
       </View>
     );
@@ -59,10 +59,10 @@ const TournamentDetailScreen: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#6200ee',
-        tabBarInactiveTintColor: '#757575',
+        tabBarActiveTintColor: '#000000',
+        tabBarInactiveTintColor: '#6B7280',
         tabBarIndicatorStyle: {
-          backgroundColor: '#6200ee',
+          backgroundColor: '#000000',
           height: 3,
         },
         tabBarLabelStyle: {
@@ -103,18 +103,18 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   errorTitle: {
     textAlign: 'center',

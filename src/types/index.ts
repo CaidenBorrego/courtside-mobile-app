@@ -66,6 +66,7 @@ export interface Tournament extends FirestoreDocument {
   state: string;
   status: TournamentStatus;
   createdBy: string;
+  imageUrl?: string;
 }
 
 export interface Division extends FirestoreDocument {
@@ -81,6 +82,8 @@ export interface Game extends FirestoreDocument {
   divisionId: string;
   teamA: string;
   teamB: string;
+  teamAImageUrl?: string;
+  teamBImageUrl?: string;
   scoreA: number;
   scoreB: number;
   startTime: FirebaseTimestamp;

@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
-import { Text, Searchbar } from 'react-native-paper';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, Searchbar, IconButton } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { firebaseService } from '../services/firebase';
 import { Tournament, RootStackParamList } from '../types';
 import TournamentCard from '../components/tournament/TournamentCard';
 import Button from '../components/common/Button';
+import OfflineIndicator from '../components/common/OfflineIndicator';
+import { useOptimizedFlatList } from '../hooks/useOptimizedFlatList';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -18,13 +20,21 @@ const HomeScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showAllTournaments, setShowAllTournaments] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
 
   // Set up real-time listener for tournaments
   useEffect(() => {
     const unsubscribe = firebaseService.onTournamentsSnapshot(
       (updatedTournaments) => {
-        setTournaments(updatedTournaments);
-        setFilteredTournaments(updatedTournaments);
+        // Sort tournaments by most recent (startDate descending)
+        const sortedTournaments = [...updatedTournaments].sort((a, b) => {
+          const dateA = a.startDate.toMillis();
+          const dateB = b.startDate.toMillis();
+          return dateB - dateA;
+        });
+        setTournaments(sortedTournaments);
+        setFilteredTournaments(sortedTournaments);
         setLoading(false);
         setRefreshing(false);
         setError(null);
@@ -54,6 +64,7 @@ const HomeScreen: React.FC = () => {
         tournament.state.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setFilteredTournaments(filtered);
+      setShowAllTournaments(true); // Show all when searching
     }
   }, [searchQuery, tournaments]);
 
@@ -61,8 +72,14 @@ const HomeScreen: React.FC = () => {
     setRefreshing(true);
     try {
       const updatedTournaments = await firebaseService.getActiveTournaments();
-      setTournaments(updatedTournaments);
-      setFilteredTournaments(updatedTournaments);
+      // Sort by most recent
+      const sortedTournaments = [...updatedTournaments].sort((a, b) => {
+        const dateA = a.startDate.toMillis();
+        const dateB = b.startDate.toMillis();
+        return dateB - dateA;
+      });
+      setTournaments(sortedTournaments);
+      setFilteredTournaments(sortedTournaments);
       setError(null);
     } catch (err) {
       setError('Failed to refresh tournaments');
@@ -72,13 +89,25 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleTournamentPress = (tournamentId: string) => {
+  const handleTournamentPress = useCallback((tournamentId: string) => {
     navigation.navigate('TournamentDetail', { tournamentId });
-  };
+  }, [navigation]);
 
-  const renderTournamentCard = ({ item }: { item: Tournament }) => (
-    <TournamentCard tournament={item} onPress={handleTournamentPress} />
+  // Memoized render function for better performance
+  const renderTournamentCard = useCallback(
+    ({ item }: { item: Tournament }) => (
+      <TournamentCard tournament={item} onPress={handleTournamentPress} />
+    ),
+    [handleTournamentPress]
   );
+
+  // Optimize FlatList with memoized key extractor
+  const { keyExtractor } = useOptimizedFlatList(filteredTournaments);
+
+  // Get tournaments to display (first 5 or all)
+  const displayedTournaments = showAllTournaments || searchQuery 
+    ? filteredTournaments 
+    : filteredTournaments.slice(0, 5);
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -94,7 +123,7 @@ const HomeScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Loading tournaments...</Text>
       </View>
     );
@@ -127,30 +156,72 @@ const HomeScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <OfflineIndicator />
       <View style={styles.headerContainer}>
-        <Searchbar
-          placeholder="Search tournaments..."
-          onChangeText={setSearchQuery}
-          value={searchQuery}
-          style={styles.searchBar}
-        />
+        <View style={styles.titleRow}>
+          <Text variant="headlineMedium" style={styles.title}>Tournaments</Text>
+          {!searchExpanded ? (
+            <IconButton
+              icon="magnify"
+              size={24}
+              onPress={() => setSearchExpanded(true)}
+              style={styles.searchIcon}
+            />
+          ) : (
+            <IconButton
+              icon="close"
+              size={24}
+              onPress={() => {
+                setSearchExpanded(false);
+                setSearchQuery('');
+              }}
+              style={styles.searchIcon}
+            />
+          )}
+        </View>
+        {searchExpanded && (
+          <Searchbar
+            placeholder="Search tournaments..."
+            onChangeText={setSearchQuery}
+            value={searchQuery}
+            style={styles.searchBar}
+            iconColor="#6B7280"
+            placeholderTextColor="#9CA3AF"
+            autoFocus
+          />
+        )}
       </View>
       <FlatList
-        data={filteredTournaments}
+        data={displayedTournaments}
         renderItem={renderTournamentCard}
-        keyExtractor={(item) => item.id}
+        keyExtractor={keyExtractor}
         ListEmptyComponent={renderEmptyState}
+        ListFooterComponent={
+          !showAllTournaments && !searchQuery && filteredTournaments.length > 5 ? (
+            <TouchableOpacity 
+              style={styles.seeAllButton}
+              onPress={() => setShowAllTournaments(true)}
+            >
+              <Text variant="titleMedium" style={styles.seeAllText}>
+                See All ({filteredTournaments.length}) →
+              </Text>
+            </TouchableOpacity>
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#6200ee']}
-            tintColor="#6200ee"
           />
         }
         contentContainerStyle={
-          filteredTournaments.length === 0 ? styles.emptyListContainer : styles.listContainer
+          displayedTournaments.length === 0 ? styles.emptyListContainer : styles.listContainer
         }
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
       />
     </View>
   );
@@ -159,24 +230,20 @@ const HomeScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
   },
   errorTitle: {
     marginBottom: 8,
@@ -184,7 +251,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
-    color: '#757575',
     marginBottom: 16,
   },
   retryButton: {
@@ -194,8 +260,23 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 8,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  title: {
+    fontWeight: 'bold',
+  },
+  searchIcon: {
+    margin: 0,
+  },
   searchBar: {
-    elevation: 2,
+    elevation: 0,
+    borderRadius: 12,
+    marginTop: 8,
+    backgroundColor: '#F3F4F6',
   },
   listContainer: {
     paddingBottom: 16,
@@ -215,7 +296,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#757575',
+  },
+  seeAllButton: {
+    padding: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  seeAllText: {
+    fontWeight: '600',
   },
 });
 

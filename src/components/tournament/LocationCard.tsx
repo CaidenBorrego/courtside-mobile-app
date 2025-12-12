@@ -1,19 +1,21 @@
 import React from 'react';
-import { View, StyleSheet, Linking, Platform, Alert } from 'react-native';
-import { Card, Text, Button } from 'react-native-paper';
+import { View, StyleSheet, Linking, Platform, Alert, TouchableOpacity } from 'react-native';
+import { Text } from 'react-native-paper';
 import { Location } from '../../types';
+import { useTheme } from '../../hooks/useTheme';
 
 interface LocationCardProps {
   location: Location;
 }
 
 const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
+  const { colors } = useTheme();
+
   const openInMaps = async () => {
     try {
       let url: string;
 
       if (location.coordinates) {
-        // Use coordinates if available
         const { latitude, longitude } = location.coordinates;
         
         if (Platform.OS === 'ios') {
@@ -22,10 +24,8 @@ const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
           url = `geo:${latitude},${longitude}?q=${latitude},${longitude}`;
         }
       } else if (location.mapUrl) {
-        // Use custom map URL if provided
         url = location.mapUrl;
       } else {
-        // Fallback to address-based search
         const address = `${location.address}, ${location.city}, ${location.state}`;
         const encodedAddress = encodeURIComponent(address);
         
@@ -41,7 +41,6 @@ const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
       if (supported) {
         await Linking.openURL(url);
       } else {
-        // Fallback to Google Maps web
         const address = `${location.address}, ${location.city}, ${location.state}`;
         const encodedAddress = encodeURIComponent(address);
         const webUrl = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
@@ -58,33 +57,32 @@ const LocationCard: React.FC<LocationCardProps> = ({ location }) => {
   };
 
   return (
-    <Card style={styles.card} mode="elevated">
-      <Card.Content>
-        <View style={styles.header}>
-          <Text variant="titleLarge" style={styles.title}>
-            {location.name}
-          </Text>
-        </View>
+    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <View style={styles.content}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {location.name}
+        </Text>
 
         <View style={styles.addressContainer}>
-          <Text variant="bodyMedium" style={styles.address}>
+          <Text style={[styles.address, { color: colors.textSecondary }]}>
             {location.address}
           </Text>
-          <Text variant="bodyMedium" style={styles.cityState}>
+          <Text style={[styles.cityState, { color: colors.textSecondary }]}>
             {location.city}, {location.state}
           </Text>
         </View>
 
-        <Button
-          mode="contained"
+        <TouchableOpacity
           onPress={openInMaps}
-          style={styles.button}
-          icon="map-marker"
+          style={[styles.button, { backgroundColor: colors.text }]}
+          activeOpacity={0.8}
         >
-          Open in Maps
-        </Button>
-      </Card.Content>
-    </Card>
+          <Text style={[styles.buttonText, { color: colors.background }]}>
+            Open in Maps
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -92,27 +90,36 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginVertical: 8,
-    elevation: 2,
+    borderRadius: 12,
+    borderWidth: 1,
   },
-  header: {
-    marginBottom: 12,
+  content: {
+    padding: 16,
   },
   title: {
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
   },
   addressContainer: {
-    marginBottom: 8,
+    marginBottom: 16,
   },
   address: {
-    color: '#424242',
+    fontSize: 14,
     marginBottom: 4,
   },
   cityState: {
-    color: '#424242',
-    marginBottom: 12,
+    fontSize: 14,
   },
   button: {
-    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

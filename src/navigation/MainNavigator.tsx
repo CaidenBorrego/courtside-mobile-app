@@ -21,15 +21,16 @@ const MainNavigator: React.FC = () => {
           backgroundColor: '#fff',
           borderTopWidth: 1,
           borderTopColor: '#e0e0e0',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
+          paddingBottom: 25,
+          paddingTop: 10,
+          height: 85,
         },
-        tabBarActiveTintColor: '#6200ee',
-        tabBarInactiveTintColor: '#757575',
+        tabBarActiveTintColor: '#000000',
+        tabBarInactiveTintColor: '#6B7280',
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
+          marginBottom: 5,
         },
       }}
     >
@@ -37,8 +38,8 @@ const MainNavigator: React.FC = () => {
         name="Home" 
         component={HomeScreen}
         options={{
-          title: 'Tournaments',
-          tabBarLabel: 'Home',
+          title: 'CourtSide',
+          tabBarLabel: 'Tournaments',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="basketball-outline" size={size} color={color} />
           ),

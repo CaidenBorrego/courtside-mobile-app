@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { firebaseService } from '../../services/firebase';
 import { Game } from '../../types';
 import FollowButton from '../../components/common/FollowButton';
+import TeamImage from '../../components/common/TeamImage';
 
 const SearchTeamsScreen: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -75,7 +76,7 @@ const SearchTeamsScreen: React.FC = () => {
     <Card style={styles.teamCard}>
       <Card.Content style={styles.teamContent}>
         <View style={styles.teamInfo}>
-          <Ionicons name="people" size={32} color="#6200ee" />
+          <TeamImage teamName={item} size={40} />
           <Text variant="titleMedium" style={styles.teamName}>
             {item}
           </Text>
@@ -90,7 +91,7 @@ const SearchTeamsScreen: React.FC = () => {
       <Ionicons
         name={searchQuery ? 'search-outline' : 'people-outline'}
         size={64}
-        color="#bdbdbd"
+        color="#D1D5DB"
       />
       <Text variant="titleMedium" style={styles.emptyTitle}>
         {searchQuery ? 'No teams found' : 'No teams available'}
@@ -106,7 +107,7 @@ const SearchTeamsScreen: React.FC = () => {
   if (!user) {
     return (
       <View style={styles.authContainer}>
-        <Ionicons name="lock-closed-outline" size={64} color="#bdbdbd" />
+        <Ionicons name="lock-closed-outline" size={64} color="#D1D5DB" />
         <Text variant="titleMedium" style={styles.authTitle}>
           Authentication Required
         </Text>
@@ -120,7 +121,7 @@ const SearchTeamsScreen: React.FC = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
         <Text style={styles.loadingText}>Loading teams...</Text>
       </View>
     );
@@ -160,24 +161,24 @@ const SearchTeamsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingText: {
     marginTop: 16,
-    color: '#757575',
+    color: '#6B7280',
   },
   authContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   authTitle: {
     marginTop: 16,
@@ -185,7 +186,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   authText: {
-    color: '#757575',
+    color: '#6B7280',
     textAlign: 'center',
   },
   searchContainer: {
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   statsText: {
-    color: '#757575',
+    color: '#6B7280',
   },
   listContainer: {
     padding: 16,
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   emptyText: {
-    color: '#757575',
+    color: '#6B7280',
     textAlign: 'center',
   },
   teamCard: {

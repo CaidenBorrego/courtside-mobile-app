@@ -94,7 +94,7 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
@@ -144,13 +144,13 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   headerContainer: {
     padding: 16,
@@ -173,14 +173,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   errorTitle: {
     marginBottom: 8,
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
     marginBottom: 16,
   },
   retryButton: {

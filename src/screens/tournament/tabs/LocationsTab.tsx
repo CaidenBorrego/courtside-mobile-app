@@ -50,7 +50,7 @@ const LocationsTab: React.FC<LocationsTabProps> = ({ tournamentId }) => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
@@ -73,13 +73,13 @@ const LocationsTab: React.FC<LocationsTabProps> = ({ tournamentId }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   listContainer: {
     padding: 16,
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: '#757575',
+    color: '#6B7280',
   },
 });
 

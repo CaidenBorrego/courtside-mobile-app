@@ -127,7 +127,7 @@ const BulkImportScreen: React.FC = () => {
 
         <View style={styles.buttonContainer}>
           {loading ? (
-            <ActivityIndicator size="large" color="#6200ee" />
+            <ActivityIndicator size="large" color="#000000" />
           ) : (
             <>
               <Button
@@ -152,21 +152,21 @@ const BulkImportScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
   },
   header: {
     padding: 20,
-    backgroundColor: '#6200ee',
+    backgroundColor: '#000000',
   },
   headerTitle: {
     color: '#fff',
     marginBottom: 8,
   },
   headerSubtitle: {
-    color: '#e1bee7',
+    color: '#F3F4F6',
   },
   card: {
     margin: 16,
@@ -176,11 +176,11 @@ const styles = StyleSheet.create({
   },
   instructionText: {
     marginBottom: 8,
-    color: '#424242',
+    color: '#374151',
   },
   noteText: {
     marginTop: 8,
-    color: '#757575',
+    color: '#6B7280',
     fontStyle: 'italic',
   },
   inputContainer: {
