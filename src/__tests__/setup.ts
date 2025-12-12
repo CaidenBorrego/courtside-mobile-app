@@ -81,6 +81,15 @@ jest.mock('firebase/firestore', () => ({
   arrayRemove: jest.fn(),
 }));
 
+// Mock Firebase Analytics
+jest.mock('firebase/analytics', () => ({
+  getAnalytics: jest.fn(),
+  logEvent: jest.fn(),
+  setUserId: jest.fn(),
+  setUserProperties: jest.fn(),
+  isSupported: jest.fn(() => Promise.resolve(true)),
+}));
+
 // Mock React Navigation
 jest.mock('@react-navigation/native', () => ({
   ...jest.requireActual('@react-navigation/native'),

@@ -22,6 +22,7 @@ jest.mock('../../services/firebase/config', () => ({
 }));
 
 jest.mock('firebase/firestore', () => ({
+  collection: jest.fn(),
   doc: jest.fn(),
   getDoc: jest.fn(() =>
     Promise.resolve({
@@ -37,11 +38,17 @@ jest.mock('firebase/firestore', () => ({
       }),
     })
   ),
+  getDocs: jest.fn(() => Promise.resolve({ docs: [] })),
+  query: jest.fn(),
+  where: jest.fn(),
+  orderBy: jest.fn(),
+  onSnapshot: jest.fn(() => jest.fn()),
   updateDoc: jest.fn(() => Promise.resolve()),
   arrayUnion: jest.fn((item) => item),
   arrayRemove: jest.fn((item) => item),
   Timestamp: {
     now: jest.fn(() => ({ toDate: () => new Date() })),
+    fromDate: jest.fn((date) => ({ toDate: () => date, toMillis: () => date.getTime() })),
   },
 }));
 
@@ -171,6 +178,16 @@ describe('Following Games E2E Flow', () => {
 });
 
 describe('Notification Preferences E2E Flow', () => {
+  const mockNavigation = {
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+  };
+
+  const mockRoute = {
+    params: {},
+  };
+
   it('should toggle notification preferences', async () => {
     const { getByText } = render(
       <NavigationContainer>

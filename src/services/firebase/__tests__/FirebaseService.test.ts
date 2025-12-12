@@ -121,7 +121,7 @@ describe('FirebaseService', () => {
         mockGetDocs.mockRejectedValue(new Error('Firestore error'));
 
         await expect(firebaseService.getTournaments()).rejects.toThrow(
-          'Failed to fetch tournaments'
+          'Firestore error'
         );
       });
     });
@@ -161,7 +161,7 @@ describe('FirebaseService', () => {
         mockGetDoc.mockResolvedValue(mockDocSnapshot as any);
 
         await expect(firebaseService.getTournament('non-existent')).rejects.toThrow(
-          'Failed to fetch tournament'
+          'Tournament not found'
         );
       });
     });

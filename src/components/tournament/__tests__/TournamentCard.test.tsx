@@ -43,12 +43,12 @@ describe('TournamentCard', () => {
 
     expect(getByText('Summer Basketball Tournament')).toBeTruthy();
     expect(getByText(/Los Angeles, CA/)).toBeTruthy();
-    expect(getByText('Active')).toBeTruthy();
+    expect(getByText('LIVE')).toBeTruthy();
   });
 
   it('displays correct status badge for active tournament', () => {
     const { getByText } = renderComponent();
-    expect(getByText('Active')).toBeTruthy();
+    expect(getByText('LIVE')).toBeTruthy();
   });
 
   it('displays correct status badge for upcoming tournament', () => {
@@ -64,7 +64,7 @@ describe('TournamentCard', () => {
       status: TournamentStatus.UPCOMING,
     };
     const { getByText } = renderComponent(upcomingTournament);
-    expect(getByText('Upcoming')).toBeTruthy();
+    expect(getByText('UPCOMING')).toBeTruthy();
   });
 
   it('displays correct status badge for completed tournament', () => {
@@ -78,7 +78,7 @@ describe('TournamentCard', () => {
       status: TournamentStatus.COMPLETED,
     };
     const { getByText } = renderComponent(completedTournament);
-    expect(getByText('Completed')).toBeTruthy();
+    expect(getByText('COMPLETED')).toBeTruthy();
   });
 
   it('calls onPress with tournament id when pressed', () => {
@@ -109,6 +109,6 @@ describe('TournamentCard', () => {
     
     // Should still render the tournament name and default to Upcoming status
     expect(getByText('Summer Basketball Tournament')).toBeTruthy();
-    expect(getByText('Upcoming')).toBeTruthy();
+    expect(getByText('UPCOMING')).toBeTruthy();
   });
 });

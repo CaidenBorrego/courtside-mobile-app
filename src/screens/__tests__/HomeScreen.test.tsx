@@ -108,12 +108,17 @@ describe('HomeScreen', () => {
       return jest.fn();
     });
     
-    const { getByPlaceholderText, getByText, queryByText } = renderComponent();
+    const { getByPlaceholderText, getByText, queryByText, getByTestId } = renderComponent();
     
     await waitFor(() => {
       expect(getByText('Summer Basketball Tournament')).toBeTruthy();
     });
     
+    // Click the search icon to expand the search bar
+    const searchIcon = getByTestId('icon-button');
+    fireEvent.press(searchIcon);
+    
+    // Now the search bar should be visible
     const searchBar = getByPlaceholderText('Search tournaments...');
     fireEvent.changeText(searchBar, 'Winter');
     

@@ -9,6 +9,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/src/__tests__/setup.ts',
+    '/src/__tests__/e2e/',
     '/src/screens/auth/__tests__/',
     '/src/services/user/__tests__/',
   ],

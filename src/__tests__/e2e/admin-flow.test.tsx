@@ -9,6 +9,35 @@ import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider } from '../../contexts/AuthContext';
 import AdminPanelScreen from '../../screens/admin/AdminPanelScreen';
 
+// Mock AuthContext to provide admin user
+jest.mock('../../contexts/AuthContext', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: () => ({
+    user: {
+      uid: 'admin-user-id',
+      email: 'admin@example.com',
+      displayName: 'Admin User',
+    },
+    userProfile: {
+      id: 'admin-user-id',
+      email: 'admin@example.com',
+      displayName: 'Admin User',
+      role: 'admin',
+      followingTeams: [],
+      followingGames: [],
+      notificationsEnabled: true,
+    },
+    loading: false,
+    error: null,
+    isAuthenticated: true,
+    signIn: jest.fn(),
+    signUp: jest.fn(),
+    signOut: jest.fn(),
+    clearError: jest.fn(),
+    refreshUserProfile: jest.fn(),
+  }),
+}));
+
 // Mock Firebase with admin user
 jest.mock('../../services/firebase/config', () => ({
   auth: {
@@ -86,9 +115,7 @@ describe('Admin Panel E2E Flow', () => {
   it('should display admin panel for admin users', async () => {
     const { getByText } = render(
       <NavigationContainer>
-        <AuthProvider>
-          <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
-        </AuthProvider>
+        <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
       </NavigationContainer>
     );
 
@@ -100,9 +127,7 @@ describe('Admin Panel E2E Flow', () => {
   it('should display list of tournaments for management', async () => {
     const { getByText } = render(
       <NavigationContainer>
-        <AuthProvider>
-          <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
-        </AuthProvider>
+        <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
       </NavigationContainer>
     );
 
@@ -114,9 +139,7 @@ describe('Admin Panel E2E Flow', () => {
   it('should navigate to create tournament screen', async () => {
     const { getByText } = render(
       <NavigationContainer>
-        <AuthProvider>
-          <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
-        </AuthProvider>
+        <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
       </NavigationContainer>
     );
 
@@ -132,9 +155,7 @@ describe('Admin Panel E2E Flow', () => {
   it('should navigate to edit tournament screen', async () => {
     const { getByText, getAllByText } = render(
       <NavigationContainer>
-        <AuthProvider>
-          <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
-        </AuthProvider>
+        <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
       </NavigationContainer>
     );
 
@@ -226,12 +247,20 @@ describe('Delete Tournament E2E Flow', () => {
 });
 
 describe('Bulk Import E2E Flow', () => {
+  const mockNavigation = {
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+  };
+
+  const mockRoute = {
+    params: {},
+  };
+
   it('should navigate to bulk import screen', async () => {
     const { getByText } = render(
       <NavigationContainer>
-        <AuthProvider>
-          <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
-        </AuthProvider>
+        <AdminPanelScreen navigation={mockNavigation as any} route={mockRoute as any} />
       </NavigationContainer>
     );
 

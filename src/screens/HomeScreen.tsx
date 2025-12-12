@@ -122,7 +122,7 @@ const HomeScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={styles.loadingContainer} testID="loading-indicator">
         <ActivityIndicator size="large" />
         <Text style={styles.loadingText}>Loading tournaments...</Text>
       </View>
@@ -192,6 +192,7 @@ const HomeScreen: React.FC = () => {
         )}
       </View>
       <FlatList
+        testID="tournament-list"
         data={displayedTournaments}
         renderItem={renderTournamentCard}
         keyExtractor={keyExtractor}

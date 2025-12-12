@@ -64,7 +64,7 @@ describe('GameCard', () => {
 
   it('displays Final status for completed game', () => {
     const { getByText } = renderComponent();
-    expect(getByText('Final')).toBeTruthy();
+    expect(getByText('FINAL')).toBeTruthy();
   });
 
   it('displays Live status for in-progress game', () => {
@@ -73,7 +73,7 @@ describe('GameCard', () => {
       status: GameStatus.IN_PROGRESS,
     };
     const { getByText } = renderComponent(liveGame);
-    expect(getByText('Live')).toBeTruthy();
+    expect(getByText('LIVE')).toBeTruthy();
   });
 
   it('displays vs for scheduled game without scores', () => {
@@ -84,8 +84,8 @@ describe('GameCard', () => {
       scoreB: 0,
     };
     const { getByText } = renderComponent(scheduledGame);
-    expect(getByText('vs')).toBeTruthy();
-    expect(getByText('Scheduled')).toBeTruthy();
+    expect(getByText('VS')).toBeTruthy();
+    expect(getByText('SCHEDULED')).toBeTruthy();
   });
 
   it('highlights winner for completed game', () => {
@@ -112,17 +112,9 @@ describe('GameCard', () => {
     fireEvent.press(getByText('Lakers'));
   });
 
-  it('displays location when showLocation is true', () => {
-    const { getByText } = renderComponent();
-    expect(getByText(/Location ID: location-1/)).toBeTruthy();
-  });
-
-  it('hides location when showLocation is false', () => {
-    const { queryByText } = render(
-      <PaperProvider>
-        <GameCard game={mockGame} showLocation={false} />
-      </PaperProvider>
-    );
+  it('renders without location display', () => {
+    // GameCard no longer displays location in the card itself
+    const { queryByText } = renderComponent();
     expect(queryByText(/Location ID/)).toBeNull();
   });
 
