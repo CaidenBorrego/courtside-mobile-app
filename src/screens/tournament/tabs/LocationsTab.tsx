@@ -24,12 +24,22 @@ const LocationsTab: React.FC<LocationsTabProps> = ({ tournamentId }) => {
   const loadLocations = async () => {
     try {
       setLoading(true);
-      // For now, load all locations
-      // In a production app, you might want to filter by tournament
-      const locationsData = await firebaseService.getLocations();
-      setLocations(locationsData);
+      // Get all games for this tournament
+      const games = await firebaseService.getGamesByTournament(tournamentId);
+      
+      // Extract unique location IDs from games
+      const locationIds = [...new Set(games.map(game => game.locationId))];
+      
+      // Fetch each location
+      const locationsData = await Promise.all(
+        locationIds.map(id => firebaseService.getLocation(id))
+      );
+      
+      // Filter out any null results (in case a location was deleted)
+      setLocations(locationsData.filter(loc => loc !== null) as Location[]);
     } catch (error) {
       console.error('Error loading locations:', error);
+      setLocations([]);
     } finally {
       setLoading(false);
     }
