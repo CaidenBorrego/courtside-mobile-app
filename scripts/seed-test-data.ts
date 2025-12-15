@@ -50,7 +50,7 @@ async function createTestUsers() {
     },
   ];
 
-  const createdUsers: Array<{ uid: string; email: string; role: string }> = [];
+  const createdUsers: { uid: string; email: string; role: string }[] = [];
 
   for (const userData of testUsers) {
     try {
@@ -113,6 +113,7 @@ async function seedTestData() {
         name: 'Summer Basketball Championship 2024',
         startDate: Timestamp.fromDate(new Date('2024-07-15')),
         endDate: Timestamp.fromDate(new Date('2024-07-20')),
+        address: '1111 S Figueroa St',
         city: 'Los Angeles',
         state: 'CA',
         status: 'active',
@@ -124,6 +125,7 @@ async function seedTestData() {
         name: 'Fall Hoops Classic',
         startDate: Timestamp.fromDate(new Date('2024-09-10')),
         endDate: Timestamp.fromDate(new Date('2024-09-15')),
+        address: '2131 Pan American Plaza',
         city: 'San Diego',
         state: 'CA',
         status: 'upcoming',
@@ -135,6 +137,7 @@ async function seedTestData() {
         name: 'Winter Invitational',
         startDate: Timestamp.fromDate(new Date('2024-12-01')),
         endDate: Timestamp.fromDate(new Date('2024-12-05')),
+        address: '1199 Folsom St',
         city: 'San Francisco',
         state: 'CA',
         status: 'upcoming',
@@ -146,6 +149,7 @@ async function seedTestData() {
         name: 'Spring Showcase Tournament',
         startDate: Timestamp.fromDate(new Date('2025-03-20')),
         endDate: Timestamp.fromDate(new Date('2025-03-24')),
+        address: '1 Sports Parkway',
         city: 'Sacramento',
         state: 'CA',
         status: 'upcoming',
@@ -157,6 +161,7 @@ async function seedTestData() {
         name: 'Elite Youth Basketball League Finals',
         startDate: Timestamp.fromDate(new Date('2024-06-01')),
         endDate: Timestamp.fromDate(new Date('2024-06-05')),
+        address: '7000 Coliseum Way',
         city: 'Oakland',
         state: 'CA',
         status: 'completed',

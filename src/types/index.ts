@@ -67,6 +67,8 @@ export interface Tournament extends FirestoreDocument {
   status: TournamentStatus;
   createdBy: string;
   imageUrl?: string;
+  address?: string;
+  mapUrl?: string;
 }
 
 export interface Division extends FirestoreDocument {

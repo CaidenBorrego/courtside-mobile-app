@@ -82,9 +82,9 @@ describe('TournamentDetailScreen', () => {
     const { getAllByText } = renderComponent();
     
     await waitFor(() => {
-      expect(getAllByText('Divisions').length).toBeGreaterThan(0);
+      expect(getAllByText('Overview').length).toBeGreaterThan(0);
       expect(getAllByText('Schedule').length).toBeGreaterThan(0);
-      expect(getAllByText('Locations').length).toBeGreaterThan(0);
+      expect(getAllByText('Divisions').length).toBeGreaterThan(0);
     });
   });
 

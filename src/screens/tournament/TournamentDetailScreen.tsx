@@ -5,9 +5,9 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import { Tournament, RootStackParamList } from '../../types';
+import OverviewTab from './tabs/OverviewTab';
 import DivisionsTab from './tabs/DivisionsTab';
 import ScheduleTab from './tabs/ScheduleTab';
-import LocationsTab from './tabs/LocationsTab';
 
 type TournamentDetailRouteProp = RouteProp<RootStackParamList, 'TournamentDetail'>;
 
@@ -77,10 +77,10 @@ const TournamentDetailScreen: React.FC = () => {
       }}
     >
       <Tab.Screen 
-        name="Divisions" 
-        options={{ tabBarLabel: 'Divisions' }}
+        name="Overview" 
+        options={{ tabBarLabel: 'Overview' }}
       >
-        {() => <DivisionsTab tournamentId={tournamentId} />}
+        {() => <OverviewTab tournament={tournament} />}
       </Tab.Screen>
       <Tab.Screen 
         name="Schedule" 
@@ -89,10 +89,10 @@ const TournamentDetailScreen: React.FC = () => {
         {() => <ScheduleTab tournamentId={tournamentId} />}
       </Tab.Screen>
       <Tab.Screen 
-        name="Locations" 
-        options={{ tabBarLabel: 'Locations' }}
+        name="Divisions" 
+        options={{ tabBarLabel: 'Divisions' }}
       >
-        {() => <LocationsTab tournamentId={tournamentId} />}
+        {() => <DivisionsTab tournamentId={tournamentId} />}
       </Tab.Screen>
     </Tab.Navigator>
   );
