@@ -126,6 +126,8 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
           onChangeText={setSearchQuery}
           value={searchQuery}
           style={styles.searchBar}
+          iconColor="#6B7280"
+          placeholderTextColor="#9CA3AF"
         />
       </View>
       <FlatList
@@ -157,7 +159,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   searchBar: {
-    elevation: 2,
+    elevation: 0,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
   },
   listContainer: {
     paddingBottom: 16,

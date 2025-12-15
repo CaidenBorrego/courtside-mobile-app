@@ -139,14 +139,17 @@ describe('ProfileScreen', () => {
   it('should handle unfollow team', async () => {
     mockUserProfileService.unfollowTeam.mockResolvedValue();
 
-    const { getByText } = renderWithNavigation(<ProfileScreen />);
+    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
-      expect(getByText('Team A')).toBeTruthy();
+      const teamElements = getAllByText('Team A');
+      expect(teamElements.length).toBeGreaterThan(0);
     });
 
-    const teamItem = getByText('Team A');
-    fireEvent.press(teamItem);
+    // Get the team item from the Followed Teams section (not the games section)
+    const teamElements = getAllByText('Team A');
+    // The first Team A should be in the teams list
+    fireEvent.press(teamElements[0]);
 
     // Confirm the alert
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -172,15 +175,21 @@ describe('ProfileScreen', () => {
   it('should handle unfollow game', async () => {
     mockUserProfileService.unfollowGame.mockResolvedValue();
 
-    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
+    const { getAllByText, getByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
-      const gameElements = getAllByText('Team A vs Team B');
-      expect(gameElements.length).toBeGreaterThan(0);
+      // Check for the score which indicates games are loaded
+      const scoreElements = getAllByText('10 - 8');
+      expect(scoreElements.length).toBeGreaterThan(0);
+      // Check for team names in games
+      const teamAElements = getAllByText('Team A');
+      expect(teamAElements.length).toBeGreaterThan(0);
     });
 
-    const gameElements = getAllByText('Team A vs Team B');
-    fireEvent.press(gameElements[0]);
+    // Get the game item - look for the score element and press its parent
+    const scoreElements = getAllByText('10 - 8');
+    // Press the first game's score area
+    fireEvent.press(scoreElements[0]);
 
     expect(Alert.alert).toHaveBeenCalledWith(
       'Unfollow Game',
@@ -289,8 +298,11 @@ describe('ProfileScreen', () => {
     await waitFor(() => {
       expect(mockFirebaseService.getGame).toHaveBeenCalledWith('game-1');
       expect(mockFirebaseService.getGame).toHaveBeenCalledWith('game-2');
-      const gameElements = getAllByText('Team A vs Team B');
-      expect(gameElements.length).toBeGreaterThan(0);
+      // Check for team names in games (now split into separate Text elements)
+      const teamAElements = getAllByText('Team A');
+      expect(teamAElements.length).toBeGreaterThan(0);
+      const teamBElements = getAllByText('Team B');
+      expect(teamBElements.length).toBeGreaterThan(0);
       const scoreElements = getAllByText('10 - 8');
       expect(scoreElements.length).toBeGreaterThan(0);
     });

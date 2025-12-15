@@ -56,13 +56,30 @@ const GameCard: React.FC<GameCardProps> = ({
       );
     }
 
+    const teamAWon = game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB;
+    const teamBWon = game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA;
+    const teamALost = game.status === GameStatus.COMPLETED && game.scoreA < game.scoreB;
+    const teamBLost = game.status === GameStatus.COMPLETED && game.scoreB < game.scoreA;
+
     return (
       <View style={styles.scoreContainer}>
-        <Text style={[styles.score, { color: colors.text }]}>
+        <Text 
+          style={[
+            styles.score, 
+            { color: teamALost ? colors.textTertiary : colors.text },
+            teamAWon && styles.winningScore
+          ]}
+        >
           {game.scoreA}
         </Text>
-        <Text style={[styles.scoreSeparator, { color: colors.textTertiary }]}>-</Text>
-        <Text style={[styles.score, { color: colors.text }]}>
+        <Text style={[styles.scoreSeparator, { color: colors.textTertiary }]}> - </Text>
+        <Text 
+          style={[
+            styles.score, 
+            { color: teamBLost ? colors.textTertiary : colors.text },
+            teamBWon && styles.winningScore
+          ]}
+        >
           {game.scoreB}
         </Text>
       </View>
@@ -95,7 +112,11 @@ const GameCard: React.FC<GameCardProps> = ({
           <Text 
             style={[
               styles.teamName,
-              { color: colors.text },
+              { 
+                color: game.status === GameStatus.COMPLETED && game.scoreA < game.scoreB 
+                  ? colors.textTertiary 
+                  : colors.text 
+              },
               game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText
             ]}
             numberOfLines={2}
@@ -117,7 +138,11 @@ const GameCard: React.FC<GameCardProps> = ({
           <Text 
             style={[
               styles.teamName,
-              { color: colors.text },
+              { 
+                color: game.status === GameStatus.COMPLETED && game.scoreB < game.scoreA 
+                  ? colors.textTertiary 
+                  : colors.text 
+              },
               game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText
             ]}
             numberOfLines={2}
@@ -209,17 +234,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   scoreContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
   score: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '600',
+  },
+  winningScore: {
+    fontWeight: '800',
+    fontSize: 26,
   },
   scoreSeparator: {
     fontSize: 18,
-    marginVertical: 4,
+    fontWeight: '400',
   },
   vsText: {
     fontSize: 16,
