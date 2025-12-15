@@ -49,9 +49,8 @@ const MainNavigator: React.FC = () => {
         name="Profile" 
         component={ProfileNavigator}
         options={{
-          title: 'Profile',
-          tabBarLabel: 'Profile',
           headerShown: false,
+          tabBarLabel: 'Profile',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size} color={color} />
           ),

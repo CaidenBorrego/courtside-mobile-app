@@ -23,7 +23,16 @@ const ProfileNavigator: React.FC = () => {
       <Stack.Screen
         name="ProfileHome"
         component={ProfileScreen}
-        options={{ title: 'Profile', headerShown: false }}
+        options={{ 
+          title: 'CourtSide',
+          headerStyle: {
+            backgroundColor: '#FFFFFF',
+          },
+          headerTintColor: '#000000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
       />
       <Stack.Screen
         name="ManageTeams"

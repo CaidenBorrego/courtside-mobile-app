@@ -8,7 +8,6 @@ import FollowButton from '../common/FollowButton';
 
 interface GameCardProps {
   game: Game;
-  onPress?: (gameId: string) => void;
   showLocation?: boolean;
   showFollowButton?: boolean;
 }
@@ -17,7 +16,6 @@ const DEFAULT_TEAM_IMAGE = 'https://images.unsplash.com/photo-1519861531473-9200
 
 const GameCard: React.FC<GameCardProps> = ({ 
   game, 
-  onPress, 
   showLocation = true,
   showFollowButton = true
 }) => {
@@ -86,19 +84,30 @@ const GameCard: React.FC<GameCardProps> = ({
     );
   };
 
-  const cardContent = (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-          {formatTime(game.startTime)}
-        </Text>
-        <View style={[styles.statusBadge, { backgroundColor: colors.backgroundSecondary }]}>
-          <Text style={[styles.statusText, { color: colors.text }]}>
-            {getStatusLabel(game.status)}
-          </Text>
+  return (
+    <View style={styles.container}>
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+              {formatTime(game.startTime)}
+            </Text>
+            {game.court && (
+              <>
+                <Text style={[styles.separator, { color: colors.textTertiary }]}>•</Text>
+                <Text style={[styles.courtText, { color: colors.textSecondary }]}>
+                  Court {game.court}
+                </Text>
+              </>
+            )}
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: colors.backgroundSecondary }]}>
+            <Text style={[styles.statusText, { color: colors.text }]}>
+              {getStatusLabel(game.status)}
+            </Text>
+          </View>
         </View>
-      </View>
 
       {/* Teams */}
       <View style={styles.teamsContainer}>
@@ -152,37 +161,24 @@ const GameCard: React.FC<GameCardProps> = ({
         </View>
       </View>
 
-      {/* Follow Button */}
-      {showFollowButton && (
-        <View style={styles.followButtonContainer}>
-          <FollowButton
-            itemId={game.id}
-            itemType="game"
-            itemName={`${game.teamA} vs ${game.teamB}`}
-            compact
-          />
-        </View>
-      )}
+        {/* Follow Button */}
+        {showFollowButton && (
+          <View style={styles.followButtonContainer}>
+            <FollowButton
+              itemId={game.id}
+              itemType="game"
+              itemName={`${game.teamA} vs ${game.teamB}`}
+              compact
+            />
+          </View>
+        )}
+      </View>
     </View>
   );
-
-  if (onPress) {
-    return (
-      <TouchableOpacity 
-        onPress={() => onPress(game.id)}
-        activeOpacity={0.7}
-        style={styles.touchable}
-      >
-        {cardContent}
-      </TouchableOpacity>
-    );
-  }
-
-  return <View style={styles.touchable}>{cardContent}</View>;
 };
 
 const styles = StyleSheet.create({
-  touchable: {
+  container: {
     marginHorizontal: 16,
     marginVertical: 8,
   },
@@ -197,7 +193,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
   timeText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  separator: {
+    fontSize: 12,
+  },
+  courtText: {
     fontSize: 13,
   },
   statusBadge: {
@@ -258,9 +267,7 @@ const styles = StyleSheet.create({
   },
   followButtonContainer: {
     marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    alignItems: 'center',
   },
 });
 

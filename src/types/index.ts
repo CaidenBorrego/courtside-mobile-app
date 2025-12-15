@@ -90,6 +90,7 @@ export interface Game extends FirestoreDocument {
   scoreB: number;
   startTime: FirebaseTimestamp;
   locationId: string;
+  court?: string;
   status: GameStatus;
 }
 

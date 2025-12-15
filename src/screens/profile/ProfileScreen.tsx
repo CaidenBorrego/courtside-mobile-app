@@ -318,7 +318,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <ScrollView 
-      style={styles.container} 
+      style={styles.container}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
@@ -332,9 +332,6 @@ const ProfileScreen: React.FC = () => {
       <Card style={styles.card}>
         <Card.Content>
           <View style={styles.userInfoContainer}>
-            <View style={styles.avatarContainer}>
-              <Ionicons name="person-circle-outline" size={80} color="#000000" />
-            </View>
             <Text variant="headlineSmall" style={styles.displayName}>
               {userProfile.displayName}
             </Text>
@@ -408,24 +405,13 @@ const ProfileScreen: React.FC = () => {
             <Text variant="titleMedium" style={styles.subsectionTitle}>
               Followed Teams
             </Text>
-            <View style={styles.sectionActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('SearchTeams')}
-              >
-                <Ionicons name="add-circle-outline" size={20} color="#000000" />
-                <Text style={styles.actionButtonText}>Find</Text>
-              </TouchableOpacity>
-              {userProfile.followingTeams.length > 0 && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={() => navigation.navigate('ManageTeams')}
-                >
-                  <Ionicons name="settings-outline" size={20} color="#000000" />
-                  <Text style={styles.actionButtonText}>Manage</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('SearchTeams')}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#000000" />
+              <Text style={styles.actionButtonText}>Find</Text>
+            </TouchableOpacity>
           </View>
           {userProfile.followingTeams.length === 0 ? (
             <View style={styles.emptyState}>
@@ -448,7 +434,7 @@ const ProfileScreen: React.FC = () => {
                 </View>
               ) : (
                 <>
-                  {userProfile.followingTeams.slice(0, 3).map((team, index) => (
+                  {userProfile.followingTeams.map((team, index) => (
                     <View key={`${team}-${index}`}>
                       <TouchableOpacity
                         style={styles.listItem}
@@ -469,20 +455,9 @@ const ProfileScreen: React.FC = () => {
                         </View>
                         <Ionicons name="close-circle-outline" size={24} color="#f44336" />
                       </TouchableOpacity>
-                      {index < Math.min(2, userProfile.followingTeams.length - 1) && <Divider />}
+                      {index < userProfile.followingTeams.length - 1 && <Divider />}
                     </View>
                   ))}
-                  {userProfile.followingTeams.length > 3 && (
-                    <TouchableOpacity
-                      style={styles.viewAllButton}
-                      onPress={() => navigation.navigate('ManageTeams')}
-                    >
-                      <Text style={styles.viewAllText}>
-                        View all {userProfile.followingTeams.length} teams
-                      </Text>
-                      <Ionicons name="chevron-forward" size={20} color="#000000" />
-                    </TouchableOpacity>
-                  )}
                 </>
               )}
             </View>
@@ -495,15 +470,6 @@ const ProfileScreen: React.FC = () => {
             <Text variant="titleMedium" style={styles.subsectionTitle}>
               Followed Games
             </Text>
-            {userProfile.followingGames.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('ManageGames')}
-              >
-                <Ionicons name="settings-outline" size={20} color="#000000" />
-                <Text style={styles.actionButtonText}>Manage</Text>
-              </TouchableOpacity>
-            )}
           </View>
           {loadingGames ? (
             <View style={styles.loadingState}>
@@ -596,9 +562,16 @@ const ProfileScreen: React.FC = () => {
                               </Text>
                             </View>
                           </View>
-                          <Text variant="bodySmall" style={styles.gameScore}>
-                            {isScheduled ? formatTime(game.startTime) : `${game.scoreA} - ${game.scoreB}`}
-                          </Text>
+                          <View style={styles.gameFooter}>
+                            <Text variant="bodySmall" style={styles.gameScore}>
+                              {isScheduled ? formatTime(game.startTime) : `${game.scoreA} - ${game.scoreB}`}
+                            </Text>
+                            {game.court && (
+                              <Text variant="bodySmall" style={styles.courtLabel}>
+                                • Court {game.court}
+                              </Text>
+                            )}
+                          </View>
                         </View>
                       </View>
                       <Ionicons name="close-circle-outline" size={24} color="#f44336" />
@@ -660,10 +633,7 @@ const styles = StyleSheet.create({
   },
   userInfoContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
-  },
-  avatarContainer: {
-    marginBottom: 16,
+    paddingVertical: 12,
   },
   displayName: {
     fontWeight: 'bold',
@@ -867,9 +837,17 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     letterSpacing: 0.5,
   },
+  gameFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
   gameScore: {
     color: '#6B7280',
-    marginTop: 2,
+  },
+  courtLabel: {
+    color: '#6B7280',
   },
   signOutContainer: {
     marginTop: 8,

@@ -56,17 +56,33 @@ const SearchTeamsScreen: React.FC = () => {
     loadTeams();
   }, []);
 
-  // Filter teams based on search query
+  // Filter and sort teams based on search query
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredTeams(allTeams);
-    } else {
-      const filtered = allTeams.filter(team =>
+    let teamsToDisplay = [...allTeams];
+    
+    // Filter by search query if present
+    if (searchQuery.trim() !== '') {
+      teamsToDisplay = allTeams.filter(team =>
         team.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredTeams(filtered);
     }
-  }, [searchQuery, allTeams]);
+    
+    // Sort: unfollowed teams first, then followed teams
+    const sortedTeams = [...teamsToDisplay].sort((a, b) => {
+      const aFollowed = userProfile?.followingTeams.includes(a) || false;
+      const bFollowed = userProfile?.followingTeams.includes(b) || false;
+      
+      // If one is followed and the other isn't, unfollowed comes first
+      if (aFollowed !== bFollowed) {
+        return aFollowed ? 1 : -1;
+      }
+      
+      // Otherwise, sort alphabetically
+      return a.localeCompare(b);
+    });
+    
+    setFilteredTeams(sortedTeams);
+  }, [searchQuery, allTeams, userProfile?.followingTeams]);
 
   const isFollowing = (teamName: string): boolean => {
     return userProfile?.followingTeams.includes(teamName) || false;
@@ -194,7 +210,9 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   searchBar: {
-    elevation: 2,
+    elevation: 0,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
   },
   statsContainer: {
     paddingHorizontal: 16,
@@ -228,6 +246,7 @@ const styles = StyleSheet.create({
   teamCard: {
     marginBottom: 12,
     elevation: 2,
+    backgroundColor: '#FFFFFF',
   },
   teamContent: {
     flexDirection: 'row',

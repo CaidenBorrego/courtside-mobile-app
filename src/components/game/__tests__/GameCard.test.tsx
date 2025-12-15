@@ -20,16 +20,15 @@ const mockGame: Game = {
   scoreB: 88,
   startTime: Timestamp.fromDate(new Date('2024-07-01T18:00:00')),
   locationId: 'location-1',
+  court: '1',
   status: GameStatus.COMPLETED,
   createdAt: Timestamp.now(),
 };
 
-const mockOnPress = jest.fn();
-
-const renderComponent = (game: Game = mockGame, onPress?: (id: string) => void, showFollowButton = false) => {
+const renderComponent = (game: Game = mockGame, showFollowButton = false) => {
   return render(
     <PaperProvider>
-      <GameCard game={game} onPress={onPress} showLocation={true} showFollowButton={showFollowButton} />
+      <GameCard game={game} showLocation={true} showFollowButton={showFollowButton} />
     </PaperProvider>
   );
 };
@@ -96,20 +95,11 @@ describe('GameCard', () => {
     // Winner should have special styling (Lakers won 95-88)
   });
 
-  it('calls onPress with game id when pressed', () => {
-    const { getByText } = renderComponent(mockGame, mockOnPress);
-    
-    fireEvent.press(getByText('Lakers'));
-    
-    expect(mockOnPress).toHaveBeenCalledWith('game-1');
-    expect(mockOnPress).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onPress when onPress is not provided', () => {
+  it('renders as a non-interactive card', () => {
     const { getByText } = renderComponent(mockGame);
     
-    // Should not throw error
-    fireEvent.press(getByText('Lakers'));
+    // Card should render without being pressable
+    expect(getByText('Lakers')).toBeTruthy();
   });
 
   it('renders without location display', () => {
@@ -123,5 +113,18 @@ describe('GameCard', () => {
     
     // Check that time is displayed (format may vary)
     expect(getByText(/Jul 01/)).toBeTruthy();
+  });
+
+  it('displays court information when court field is present', () => {
+    const { getByText } = renderComponent(mockGame);
+    
+    expect(getByText('Court 1')).toBeTruthy();
+  });
+
+  it('does not display court information when court field is absent', () => {
+    const gameWithoutCourt = { ...mockGame, court: undefined };
+    const { queryByText } = renderComponent(gameWithoutCourt);
+    
+    expect(queryByText(/Court/)).toBeNull();
   });
 });

@@ -70,12 +70,8 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
     }
   }, [searchQuery, games]);
 
-  const handleGamePress = (gameId: string) => {
-    navigation.navigate('GameDetail', { gameId });
-  };
-
   const renderGameCard = ({ item }: { item: Game }) => (
-    <GameCard game={item} onPress={handleGamePress} showLocation={true} />
+    <GameCard game={item} showLocation={true} />
   );
 
   const renderEmptyState = () => (

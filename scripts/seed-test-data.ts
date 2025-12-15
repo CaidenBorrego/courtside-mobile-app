@@ -4,7 +4,18 @@
  */
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, Timestamp, doc, setDoc } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  Timestamp, 
+  doc, 
+  setDoc,
+  query,
+  where,
+  getDocs,
+  updateDoc
+} from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 // Load environment variables
@@ -25,6 +36,64 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Helper function to find existing document by name
+async function findDocumentByName(collectionName: string, name: string) {
+  const q = query(collection(db, collectionName), where('name', '==', name));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.empty ? null : { id: querySnapshot.docs[0].id, data: querySnapshot.docs[0].data() };
+}
+
+// Helper function to upsert (update or insert) a document
+async function upsertDocument(collectionName: string, data: any, uniqueField: string = 'name') {
+  const existing = await findDocumentByName(collectionName, data[uniqueField]);
+  
+  if (existing) {
+    // Update existing document
+    const docRef = doc(db, collectionName, existing.id);
+    await updateDoc(docRef, { ...data, updatedAt: Timestamp.now() });
+    return { id: existing.id, isNew: false };
+  } else {
+    // Create new document
+    const docRef = await addDoc(collection(db, collectionName), data);
+    return { id: docRef.id, isNew: true };
+  }
+}
+
+// Helper function to find existing game by teams and start time
+async function findGameByTeamsAndTime(teamA: string, teamB: string, startTime: Timestamp) {
+  const q = query(
+    collection(db, 'games'),
+    where('teamA', '==', teamA),
+    where('teamB', '==', teamB)
+  );
+  const querySnapshot = await getDocs(q);
+  
+  // Check if any match the start time
+  for (const doc of querySnapshot.docs) {
+    const gameData = doc.data();
+    if (gameData.startTime.seconds === startTime.seconds) {
+      return { id: doc.id, data: gameData };
+    }
+  }
+  return null;
+}
+
+// Helper function to upsert a game
+async function upsertGame(gameData: any) {
+  const existing = await findGameByTeamsAndTime(gameData.teamA, gameData.teamB, gameData.startTime);
+  
+  if (existing) {
+    // Update existing game
+    const docRef = doc(db, 'games', existing.id);
+    await updateDoc(docRef, { ...gameData, updatedAt: Timestamp.now() });
+    return { id: existing.id, isNew: false };
+  } else {
+    // Create new game
+    const docRef = await addDoc(collection(db, 'games'), gameData);
+    return { id: docRef.id, isNew: true };
+  }
+}
 
 async function createTestUsers() {
   console.log('👥 Creating test user accounts...');
@@ -174,9 +243,9 @@ async function seedTestData() {
     const tournamentIds: string[] = [];
     
     for (const tournament of tournaments) {
-      const docRef = await addDoc(collection(db, 'tournaments'), tournament);
-      tournamentIds.push(docRef.id);
-      console.log(`✅ Created tournament: ${tournament.name} (ID: ${docRef.id})`);
+      const result = await upsertDocument('tournaments', tournament);
+      tournamentIds.push(result.id);
+      console.log(`${result.isNew ? '✅ Created' : '🔄 Updated'} tournament: ${tournament.name} (ID: ${result.id})`);
     }
 
     // Create divisions for multiple tournaments
@@ -243,9 +312,9 @@ async function seedTestData() {
     const divisionIds: string[] = [];
     
     for (const division of divisions) {
-      const docRef = await addDoc(collection(db, 'divisions'), division);
-      divisionIds.push(docRef.id);
-      console.log(`✅ Created division: ${division.name} (ID: ${docRef.id})`);
+      const result = await upsertDocument('divisions', division);
+      divisionIds.push(result.id);
+      console.log(`${result.isNew ? '✅ Created' : '🔄 Updated'} division: ${division.name} (ID: ${result.id})`);
     }
 
     // Create locations with more variety
@@ -316,9 +385,9 @@ async function seedTestData() {
     const locationIds: string[] = [];
     
     for (const location of locations) {
-      const docRef = await addDoc(collection(db, 'locations'), location);
-      locationIds.push(docRef.id);
-      console.log(`✅ Created location: ${location.name} (ID: ${docRef.id})`);
+      const result = await upsertDocument('locations', location);
+      locationIds.push(result.id);
+      console.log(`${result.isNew ? '✅ Created' : '🔄 Updated'} location: ${location.name} (ID: ${result.id})`);
     }
 
     // Create games with realistic variety
@@ -341,6 +410,7 @@ async function seedTestData() {
         scoreB: 0,
         startTime: Timestamp.fromDate(new Date('2024-07-15T10:00:00')),
         locationId: locationIds[0],
+        court: '1',
         status: 'scheduled',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -348,6 +418,7 @@ async function seedTestData() {
       {
         tournamentId: tournamentIds[0],
         divisionId: divisionIds[0],
+        court: 'A',
         teamA: teamNames[2],
         teamB: teamNames[3],
         scoreA: 0,
@@ -367,6 +438,7 @@ async function seedTestData() {
         scoreB: 0,
         startTime: Timestamp.fromDate(new Date('2024-07-15T14:00:00')),
         locationId: locationIds[2],
+        court: '2',
         status: 'scheduled',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -381,6 +453,7 @@ async function seedTestData() {
         scoreB: 58,
         startTime: Timestamp.fromDate(new Date('2024-07-15T09:00:00')),
         locationId: locationIds[0],
+        court: 'B',
         status: 'completed',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -394,6 +467,7 @@ async function seedTestData() {
         scoreB: 38,
         startTime: Timestamp.fromDate(new Date('2024-07-15T11:00:00')),
         locationId: locationIds[1],
+        court: '3',
         status: 'in_progress',
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -483,8 +557,8 @@ async function seedTestData() {
     ];
 
     for (const game of games) {
-      const docRef = await addDoc(collection(db, 'games'), game);
-      console.log(`✅ Created game: ${game.teamA} vs ${game.teamB} (ID: ${docRef.id})`);
+      const result = await upsertGame(game);
+      console.log(`${result.isNew ? '✅ Created' : '🔄 Updated'} game: ${game.teamA} vs ${game.teamB} (ID: ${result.id})`);
     }
 
     console.log('\n✨ Test data seeded successfully!');
