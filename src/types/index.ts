@@ -50,6 +50,8 @@ export type CreateGameData = CreateDocumentData<Game>;
 export type CreateDivisionData = CreateDocumentData<Division>;
 export type CreateLocationData = CreateDocumentData<Location>;
 export type CreateUserProfileData = CreateDocumentData<UserProfile>;
+export type CreatePoolData = CreateDocumentData<Pool>;
+export type CreateBracketData = CreateDocumentData<Bracket>;
 
 // Update data types for modifying existing documents
 export type UpdateTournamentData = UpdateDocumentData<Tournament>;
@@ -57,6 +59,8 @@ export type UpdateGameData = UpdateDocumentData<Game>;
 export type UpdateDivisionData = UpdateDocumentData<Division>;
 export type UpdateLocationData = UpdateDocumentData<Location>;
 export type UpdateUserProfileData = UpdateDocumentData<UserProfile>;
+export type UpdatePoolData = UpdateDocumentData<Pool>;
+export type UpdateBracketData = UpdateDocumentData<Bracket>;
 
 export interface Tournament extends FirestoreDocument {
   name: string;
@@ -92,6 +96,15 @@ export interface Game extends FirestoreDocument {
   locationId: string;
   court?: string;
   status: GameStatus;
+  // Pool and bracket structure fields
+  poolId?: string;
+  poolGameNumber?: number;
+  bracketId?: string;
+  bracketRound?: string;
+  bracketPosition?: number;
+  dependsOnGames?: string[];
+  feedsIntoGame?: string;
+  gameLabel?: string;
 }
 
 export interface Location extends FirestoreDocument {
@@ -104,6 +117,42 @@ export interface Location extends FirestoreDocument {
     longitude: number;
   };
   mapUrl?: string;
+}
+
+export interface Pool extends FirestoreDocument {
+  divisionId: string;
+  tournamentId: string;
+  name: string;
+  teams: string[];
+  advancementCount?: number;
+}
+
+export interface BracketSeed {
+  position: number;
+  teamName?: string;
+  sourcePoolId?: string;
+  sourcePoolRank?: number;
+}
+
+export interface Bracket extends FirestoreDocument {
+  divisionId: string;
+  tournamentId: string;
+  name: string;
+  size: 4 | 8 | 16 | 32;
+  seedingSource: 'manual' | 'pools' | 'mixed';
+  seeds: BracketSeed[];
+}
+
+export interface PoolStanding {
+  teamName: string;
+  poolId: string;
+  wins: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  pointDifferential: number;
+  gamesPlayed: number;
+  poolRank: number;
 }
 
 export interface UserProfile extends FirestoreDocument {

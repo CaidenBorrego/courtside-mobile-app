@@ -24,16 +24,22 @@ import {
   Division,
   Location,
   UserProfile,
+  Pool,
+  Bracket,
   CreateTournamentData,
   CreateGameData,
   CreateDivisionData,
   CreateLocationData,
   CreateUserProfileData,
+  CreatePoolData,
+  CreateBracketData,
   UpdateTournamentData,
   UpdateGameData,
   UpdateDivisionData,
   UpdateLocationData,
   UpdateUserProfileData,
+  UpdatePoolData,
+  UpdateBracketData,
   TournamentStatus,
 } from '../../types';
 import { retryWithBackoff, categorizeError } from '../../utils/errorHandling';
@@ -46,6 +52,8 @@ export class FirebaseService {
   private readonly divisionsCollection = collection(db, 'divisions');
   private readonly locationsCollection = collection(db, 'locations');
   private readonly usersCollection = collection(db, 'users');
+  private readonly poolsCollection = collection(db, 'pools');
+  private readonly bracketsCollection = collection(db, 'brackets');
 
   // Tournament operations
   async getTournaments(): Promise<Tournament[]> {
@@ -283,6 +291,62 @@ export class FirebaseService {
     }
   }
 
+  // Structure-aware game queries
+  async getGamesByPool(poolId: string): Promise<Game[]> {
+    try {
+      const q = query(
+        this.gamesCollection,
+        where('poolId', '==', poolId),
+        orderBy('poolGameNumber', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Game));
+    } catch (error) {
+      console.error('Error fetching games by pool:', error);
+      throw new Error('Failed to fetch games by pool');
+    }
+  }
+
+  async getGamesByBracket(bracketId: string): Promise<Game[]> {
+    try {
+      const q = query(
+        this.gamesCollection,
+        where('bracketId', '==', bracketId),
+        orderBy('bracketPosition', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Game));
+    } catch (error) {
+      console.error('Error fetching games by bracket:', error);
+      throw new Error('Failed to fetch games by bracket');
+    }
+  }
+
+  async getGamesByBracketRound(bracketId: string, round: string): Promise<Game[]> {
+    try {
+      const q = query(
+        this.gamesCollection,
+        where('bracketId', '==', bracketId),
+        where('bracketRound', '==', round),
+        orderBy('bracketPosition', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Game));
+    } catch (error) {
+      console.error('Error fetching games by bracket round:', error);
+      throw new Error('Failed to fetch games by bracket round');
+    }
+  }
+
   // Division operations
   async getDivisionsByTournament(tournamentId: string): Promise<Division[]> {
     try {
@@ -355,6 +419,156 @@ export class FirebaseService {
     } catch (error) {
       console.error('Error deleting division:', error);
       throw new Error('Failed to delete division');
+    }
+  }
+
+  // Pool operations
+  async getPoolsByDivision(divisionId: string): Promise<Pool[]> {
+    try {
+      const q = query(
+        this.poolsCollection,
+        where('divisionId', '==', divisionId),
+        orderBy('name', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Pool));
+    } catch (error) {
+      console.error('Error fetching pools by division:', error);
+      throw new Error('Failed to fetch pools');
+    }
+  }
+
+  async getPool(id: string): Promise<Pool> {
+    try {
+      const docRef = doc(this.poolsCollection, id);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        throw new Error('Pool not found');
+      }
+      
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Pool;
+    } catch (error) {
+      console.error('Error fetching pool:', error);
+      throw new Error('Failed to fetch pool');
+    }
+  }
+
+  async createPool(poolData: CreatePoolData): Promise<string> {
+    try {
+      const docRef = await addDoc(this.poolsCollection, {
+        ...poolData,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating pool:', error);
+      throw new Error('Failed to create pool');
+    }
+  }
+
+  async updatePool(id: string, updates: UpdatePoolData): Promise<void> {
+    try {
+      const docRef = doc(this.poolsCollection, id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error updating pool:', error);
+      throw new Error('Failed to update pool');
+    }
+  }
+
+  async deletePool(id: string): Promise<void> {
+    try {
+      const docRef = doc(this.poolsCollection, id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error('Error deleting pool:', error);
+      throw new Error('Failed to delete pool');
+    }
+  }
+
+  // Bracket operations
+  async getBracketsByDivision(divisionId: string): Promise<Bracket[]> {
+    try {
+      const q = query(
+        this.bracketsCollection,
+        where('divisionId', '==', divisionId),
+        orderBy('name', 'asc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Bracket));
+    } catch (error) {
+      console.error('Error fetching brackets by division:', error);
+      throw new Error('Failed to fetch brackets');
+    }
+  }
+
+  async getBracket(id: string): Promise<Bracket> {
+    try {
+      const docRef = doc(this.bracketsCollection, id);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        throw new Error('Bracket not found');
+      }
+      
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      } as Bracket;
+    } catch (error) {
+      console.error('Error fetching bracket:', error);
+      throw new Error('Failed to fetch bracket');
+    }
+  }
+
+  async createBracket(bracketData: CreateBracketData): Promise<string> {
+    try {
+      const docRef = await addDoc(this.bracketsCollection, {
+        ...bracketData,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error creating bracket:', error);
+      throw new Error('Failed to create bracket');
+    }
+  }
+
+  async updateBracket(id: string, updates: UpdateBracketData): Promise<void> {
+    try {
+      const docRef = doc(this.bracketsCollection, id);
+      await updateDoc(docRef, {
+        ...updates,
+        updatedAt: Timestamp.now(),
+      });
+    } catch (error) {
+      console.error('Error updating bracket:', error);
+      throw new Error('Failed to update bracket');
+    }
+  }
+
+  async deleteBracket(id: string): Promise<void> {
+    try {
+      const docRef = doc(this.bracketsCollection, id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      console.error('Error deleting bracket:', error);
+      throw new Error('Failed to delete bracket');
     }
   }
 
