@@ -15,7 +15,7 @@ import {
   TextInput,
   SegmentedButtons,
 } from 'react-native-paper';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import {
   Tournament,
@@ -24,6 +24,9 @@ import {
   Gender,
   GameStatus,
   Location,
+  Pool,
+  Bracket,
+  TournamentFormat,
 } from '../../types';
 import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/common/Button';
@@ -37,12 +40,16 @@ const ManageTournamentScreen: React.FC = () => {
   const route = useRoute<ManageTournamentScreenRouteProp>();
   const { tournamentId } = route.params;
 
+  const navigation = useNavigation();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'divisions' | 'games'>('divisions');
+  const [activeTab, setActiveTab] = useState<'divisions' | 'games' | 'structure'>('divisions');
+  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null);
 
   // Division dialog state
   const [showDivisionDialog, setShowDivisionDialog] = useState(false);
@@ -52,6 +59,7 @@ const ManageTournamentScreen: React.FC = () => {
     ageGroup: '',
     gender: Gender.MIXED,
     skillLevel: '',
+    format: TournamentFormat.HYBRID,
   });
 
   // Game dialog state
@@ -85,6 +93,11 @@ const ManageTournamentScreen: React.FC = () => {
       setDivisions(divisionsData);
       setGames(gamesData);
       setLocations(locationsData);
+
+      // Set default selected division if available
+      if (divisionsData.length > 0 && !selectedDivisionId) {
+        setSelectedDivisionId(divisionsData[0].id);
+      }
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load tournament data');
@@ -92,6 +105,26 @@ const ManageTournamentScreen: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const loadStructureData = async (divisionId: string) => {
+    try {
+      const [poolsData, bracketsData] = await Promise.all([
+        firebaseService.getPoolsByDivision(divisionId),
+        firebaseService.getBracketsByDivision(divisionId),
+      ]);
+      setPools(poolsData);
+      setBrackets(bracketsData);
+    } catch (error) {
+      console.error('Error loading structure data:', error);
+      Alert.alert('Error', 'Failed to load pools and brackets');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'structure' && selectedDivisionId) {
+      loadStructureData(selectedDivisionId);
+    }
+  }, [activeTab, selectedDivisionId]);
 
   // Division handlers
   const handleCreateDivision = () => {
@@ -101,6 +134,7 @@ const ManageTournamentScreen: React.FC = () => {
       ageGroup: '',
       gender: Gender.MIXED,
       skillLevel: '',
+      format: TournamentFormat.HYBRID,
     });
     setShowDivisionDialog(true);
   };
@@ -112,6 +146,7 @@ const ManageTournamentScreen: React.FC = () => {
       ageGroup: division.ageGroup,
       gender: division.gender,
       skillLevel: division.skillLevel,
+      format: division.format || TournamentFormat.HYBRID,
     });
     setShowDivisionDialog(true);
   };
@@ -129,6 +164,7 @@ const ManageTournamentScreen: React.FC = () => {
           ageGroup: divisionForm.ageGroup,
           gender: divisionForm.gender,
           skillLevel: divisionForm.skillLevel,
+          format: divisionForm.format,
           updatedAt: Timestamp.now(),
         });
         Alert.alert('Success', 'Division updated successfully');
@@ -139,6 +175,7 @@ const ManageTournamentScreen: React.FC = () => {
           ageGroup: divisionForm.ageGroup,
           gender: divisionForm.gender,
           skillLevel: divisionForm.skillLevel,
+          format: divisionForm.format,
           createdAt: Timestamp.now(),
         });
         Alert.alert('Success', 'Division created successfully');
@@ -299,10 +336,11 @@ const ManageTournamentScreen: React.FC = () => {
 
       <SegmentedButtons
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as 'divisions' | 'games')}
+        onValueChange={(value) => setActiveTab(value as 'divisions' | 'games' | 'structure')}
         buttons={[
           { value: 'divisions', label: 'Divisions' },
           { value: 'games', label: 'Games' },
+          { value: 'structure', label: 'Structure' },
         ]}
         style={styles.segmentedButtons}
       />
@@ -345,7 +383,7 @@ const ManageTournamentScreen: React.FC = () => {
               ))
             )}
           </>
-        ) : (
+        ) : activeTab === 'games' ? (
           <>
             {games.length === 0 ? (
               <View style={styles.emptyContainer}>
@@ -385,6 +423,149 @@ const ManageTournamentScreen: React.FC = () => {
                   </Card.Actions>
                 </Card>
               ))
+            )}
+          </>
+        ) : (
+          <>
+            {/* Structure Tab */}
+            {divisions.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text variant="titleMedium">No Divisions</Text>
+                <Text variant="bodyMedium" style={styles.emptyText}>
+                  Create divisions first to configure tournament structure
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Division Selector */}
+                <View style={styles.divisionSelector}>
+                  <Text variant="titleSmall" style={styles.selectorLabel}>
+                    Select Division:
+                  </Text>
+                  <SegmentedButtons
+                    value={selectedDivisionId || ''}
+                    onValueChange={(value) => setSelectedDivisionId(value)}
+                    buttons={divisions.map((division) => ({
+                      value: division.id,
+                      label: division.name,
+                    }))}
+                    style={styles.divisionButtons}
+                  />
+                </View>
+
+                {selectedDivisionId && (() => {
+                  const selectedDivision = divisions.find(d => d.id === selectedDivisionId);
+                  const format = selectedDivision?.format || TournamentFormat.HYBRID;
+                  const showPools = format === TournamentFormat.POOL_ONLY || format === TournamentFormat.HYBRID;
+                  const showBrackets = format === TournamentFormat.BRACKET_ONLY || format === TournamentFormat.HYBRID;
+
+                  return (
+                    <>
+                      {/* Format Info */}
+                      <View style={styles.formatInfo}>
+                        <Text variant="bodyMedium" style={styles.formatLabel}>
+                          Format: {format === TournamentFormat.POOL_ONLY ? 'Pool Only' : 
+                                   format === TournamentFormat.BRACKET_ONLY ? 'Bracket Only' : 'Hybrid'}
+                        </Text>
+                        <Text variant="bodySmall" style={styles.formatDescription}>
+                          {format === TournamentFormat.POOL_ONLY && 
+                            'This division uses round-robin pools only'}
+                          {format === TournamentFormat.BRACKET_ONLY && 
+                            'This division uses single-elimination brackets only'}
+                          {format === TournamentFormat.HYBRID && 
+                            'This division uses pool play followed by elimination brackets'}
+                        </Text>
+                      </View>
+
+                      {/* Pools Section */}
+                      {showPools && (
+                        <View style={styles.structureSection}>
+                          <View style={styles.sectionHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>
+                              Pools
+                            </Text>
+                            <Button
+                              title="Configure"
+                              mode="contained"
+                              onPress={() => {
+                                (navigation as any).navigate('PoolConfiguration', {
+                                  divisionId: selectedDivisionId,
+                                  tournamentId,
+                                });
+                              }}
+                            />
+                          </View>
+                          <Card style={styles.structureCard}>
+                            <Card.Content>
+                              {pools.length === 0 ? (
+                                <Text variant="bodyMedium" style={styles.emptyStructureText}>
+                                  No pools configured for this division
+                                </Text>
+                              ) : (
+                                <>
+                                  <Text variant="bodyMedium" style={styles.structureInfo}>
+                                    {pools.length} pool(s) configured
+                                  </Text>
+                                  {pools.map((pool) => (
+                                    <View key={pool.id} style={styles.structureItem}>
+                                      <Text variant="bodySmall">
+                                        • {pool.name} ({pool.teams.length} teams)
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </>
+                              )}
+                            </Card.Content>
+                          </Card>
+                        </View>
+                      )}
+
+                      {/* Brackets Section */}
+                      {showBrackets && (
+                        <View style={styles.structureSection}>
+                          <View style={styles.sectionHeader}>
+                            <Text variant="titleMedium" style={styles.sectionTitle}>
+                              Brackets
+                            </Text>
+                            <Button
+                              title="Configure"
+                              mode="contained"
+                              onPress={() => {
+                                (navigation as any).navigate('BracketConfiguration', {
+                                  divisionId: selectedDivisionId,
+                                  tournamentId,
+                                });
+                              }}
+                            />
+                          </View>
+                          <Card style={styles.structureCard}>
+                            <Card.Content>
+                              {brackets.length === 0 ? (
+                                <Text variant="bodyMedium" style={styles.emptyStructureText}>
+                                  No brackets configured for this division
+                                </Text>
+                              ) : (
+                                <>
+                                  <Text variant="bodyMedium" style={styles.structureInfo}>
+                                    {brackets.length} bracket(s) configured
+                                  </Text>
+                                  {brackets.map((bracket) => (
+                                    <View key={bracket.id} style={styles.structureItem}>
+                                      <Text variant="bodySmall">
+                                        • {bracket.name} ({bracket.size} teams)
+                                      </Text>
+                                    </View>
+                                  ))}
+                                </>
+                              )}
+                            </Card.Content>
+                          </Card>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
+              </>
             )}
           </>
         )}
@@ -440,6 +621,29 @@ const ManageTournamentScreen: React.FC = () => {
                 ]}
                 style={styles.input}
               />
+              <Text variant="bodyMedium" style={styles.inputLabel}>
+                Tournament Format
+              </Text>
+              <SegmentedButtons
+                value={divisionForm.format}
+                onValueChange={(value) =>
+                  setDivisionForm({ ...divisionForm, format: value as TournamentFormat })
+                }
+                buttons={[
+                  { value: TournamentFormat.POOL_ONLY, label: 'Pool Only' },
+                  { value: TournamentFormat.BRACKET_ONLY, label: 'Bracket Only' },
+                  { value: TournamentFormat.HYBRID, label: 'Hybrid' },
+                ]}
+                style={styles.input}
+              />
+              <Text variant="bodySmall" style={styles.formatHint}>
+                {divisionForm.format === TournamentFormat.POOL_ONLY && 
+                  'Round-robin pools only, no elimination brackets'}
+                {divisionForm.format === TournamentFormat.BRACKET_ONLY && 
+                  'Single-elimination brackets only, no pool play'}
+                {divisionForm.format === TournamentFormat.HYBRID && 
+                  'Pool play followed by elimination brackets'}
+              </Text>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
@@ -524,12 +728,14 @@ const ManageTournamentScreen: React.FC = () => {
         </Dialog>
       </Portal>
 
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={activeTab === 'divisions' ? handleCreateDivision : handleCreateGame}
-        label={activeTab === 'divisions' ? 'New Division' : 'New Game'}
-      />
+      {activeTab !== 'structure' && (
+        <FAB
+          icon="plus"
+          style={styles.fab}
+          onPress={activeTab === 'divisions' ? handleCreateDivision : handleCreateGame}
+          label={activeTab === 'divisions' ? 'New Division' : 'New Game'}
+        />
+      )}
     </View>
   );
 };
@@ -595,12 +801,75 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#6B7280',
   },
+  formatHint: {
+    marginTop: 4,
+    marginBottom: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  formatInfo: {
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  formatLabel: {
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  formatDescription: {
+    color: '#6B7280',
+  },
   fab: {
     position: 'absolute',
     margin: 16,
     right: 0,
     bottom: 0,
     backgroundColor: '#000000',
+  },
+  divisionSelector: {
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  selectorLabel: {
+    marginBottom: 8,
+    color: '#374151',
+    fontWeight: '600',
+  },
+  divisionButtons: {
+    marginTop: 4,
+  },
+  structureSection: {
+    padding: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontWeight: '600',
+    color: '#111827',
+  },
+  structureCard: {
+    backgroundColor: '#FFFFFF',
+  },
+  emptyStructureText: {
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  structureInfo: {
+    marginBottom: 8,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  structureItem: {
+    marginTop: 4,
+    paddingLeft: 8,
   },
 });
 

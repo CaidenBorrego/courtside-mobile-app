@@ -27,6 +27,12 @@ export enum Gender {
   MIXED = 'mixed'
 }
 
+export enum TournamentFormat {
+  POOL_ONLY = 'pool_only',
+  BRACKET_ONLY = 'bracket_only',
+  HYBRID = 'hybrid'
+}
+
 // Firebase utility types
 export type FirebaseTimestamp = Timestamp;
 
@@ -81,6 +87,7 @@ export interface Division extends FirestoreDocument {
   ageGroup: string;
   gender: Gender;
   skillLevel: string;
+  format?: TournamentFormat;
 }
 
 export interface Game extends FirestoreDocument {

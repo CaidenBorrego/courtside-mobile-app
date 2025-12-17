@@ -14,8 +14,13 @@ const mockRoute = {
   },
 };
 
+const mockNavigate = jest.fn();
+
 jest.mock('@react-navigation/native', () => ({
   useRoute: () => mockRoute,
+  useNavigation: () => ({
+    navigate: mockNavigate,
+  }),
 }));
 
 // Mock Firebase service
@@ -25,6 +30,8 @@ jest.mock('../../../services/firebase', () => ({
     getDivisionsByTournament: jest.fn(),
     getGamesByTournament: jest.fn(),
     getLocations: jest.fn(),
+    getPoolsByDivision: jest.fn(),
+    getBracketsByDivision: jest.fn(),
     createDivision: jest.fn(),
     updateDivision: jest.fn(),
     deleteDivision: jest.fn(),
