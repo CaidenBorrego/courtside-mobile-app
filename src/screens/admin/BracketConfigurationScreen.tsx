@@ -11,6 +11,7 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import { bracketService } from '../../services/tournament/BracketService';
 import { Bracket, Game, Pool, BracketSeed } from '../../types';
+import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/common/Button';
 
 type BracketConfigurationScreenRouteProp = RouteProp<
@@ -200,6 +201,7 @@ const BracketConfigurationScreen: React.FC = () => {
         await bracketService.updateBracket(editingBracket.id, {
           name: bracketForm.name,
           seedingSource: bracketForm.seedingSource,
+          updatedAt: Timestamp.now(),
         });
 
         // Update seeds if manual seeding
@@ -220,6 +222,7 @@ const BracketConfigurationScreen: React.FC = () => {
 
           await bracketService.updateBracket(editingBracket.id, {
             seeds: updatedSeeds,
+            updatedAt: Timestamp.now(),
           });
 
           // Update bracket games with new seeds
@@ -259,6 +262,7 @@ const BracketConfigurationScreen: React.FC = () => {
 
           await bracketService.updateBracket(bracket.id, {
             seeds: updatedSeeds,
+            updatedAt: Timestamp.now(),
           });
         }
 
