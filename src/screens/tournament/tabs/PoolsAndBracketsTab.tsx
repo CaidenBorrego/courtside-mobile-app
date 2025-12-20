@@ -341,7 +341,7 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
           No Pools or Brackets
         </Text>
         <Text variant="bodyMedium" style={styles.emptySubtitle}>
-          This tournament doesn't have any pools or brackets configured yet.
+          This tournament doesn&apos;t have any pools or brackets configured yet.
         </Text>
       </View>
     );

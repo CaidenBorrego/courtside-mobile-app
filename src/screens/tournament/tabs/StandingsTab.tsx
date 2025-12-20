@@ -215,7 +215,7 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
           No Divisions
         </Text>
         <Text variant="bodyMedium" style={styles.emptySubtitle}>
-          This tournament doesn't have any divisions yet.
+          This tournament doesn&apos;t have any divisions yet.
         </Text>
       </View>
     );
