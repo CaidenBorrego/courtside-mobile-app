@@ -90,6 +90,42 @@ export interface Division extends FirestoreDocument {
   format?: TournamentFormat;
 }
 
+/**
+ * Game data model
+ * 
+ * Represents a single game between two teams. Can be part of pool play,
+ * bracket play, or standalone. Includes scheduling, scoring, and structure
+ * information.
+ * 
+ * @property tournamentId - Reference to the tournament
+ * @property divisionId - Reference to the division
+ * @property teamA - Name of the first team
+ * @property teamB - Name of the second team
+ * @property teamAImageUrl - Optional image URL for team A
+ * @property teamBImageUrl - Optional image URL for team B
+ * @property scoreA - Score for team A
+ * @property scoreB - Score for team B
+ * @property startTime - Scheduled start time
+ * @property locationId - Reference to the location/venue
+ * @property court - Optional court identifier (e.g., "Court 1")
+ * @property status - Current game status (scheduled, in_progress, completed, cancelled)
+ * 
+ * Pool play fields:
+ * @property poolId - Optional reference to pool if this is a pool game
+ * @property poolGameNumber - Optional game number within the pool (e.g., 1, 2, 3)
+ * 
+ * Bracket play fields:
+ * @property bracketId - Optional reference to bracket if this is a bracket game
+ * @property bracketRound - Optional round name (e.g., "Finals", "Semifinals", "Round 1")
+ * @property bracketPosition - Optional position within the round
+ * @property dependsOnGames - Optional array of game IDs that must complete before this game
+ * @property feedsIntoGame - DEPRECATED: Use winnerFeedsIntoGame instead
+ * @property winnerFeedsIntoGame - Optional game ID that the winner advances to
+ * @property loserFeedsIntoGame - Optional game ID that the loser advances to (for consolation/double-elimination)
+ * 
+ * Display fields:
+ * @property gameLabel - Optional computed label (e.g., "Pool A Game 1", "Gold Bracket Finals")
+ */
 export interface Game extends FirestoreDocument {
   tournamentId: string;
   divisionId: string;
@@ -110,7 +146,9 @@ export interface Game extends FirestoreDocument {
   bracketRound?: string;
   bracketPosition?: number;
   dependsOnGames?: string[];
-  feedsIntoGame?: string;
+  feedsIntoGame?: string; // DEPRECATED: Use winnerFeedsIntoGame
+  winnerFeedsIntoGame?: string;
+  loserFeedsIntoGame?: string;
   gameLabel?: string;
 }
 
@@ -126,6 +164,30 @@ export interface Location extends FirestoreDocument {
   mapUrl?: string;
 }
 
+/**
+ * Pool data model for round-robin tournament play
+ * 
+ * A pool is a group of teams that play each other in a round-robin format,
+ * where each team plays every other team exactly once.
+ * 
+ * @property divisionId - Reference to the division this pool belongs to
+ * @property tournamentId - Reference to the tournament this pool belongs to
+ * @property name - Display name for the pool (e.g., "Pool A", "Gold Pool")
+ * @property teams - Array of team names participating in this pool
+ * @property advancementCount - Optional number of teams that advance to brackets from this pool
+ * 
+ * @example
+ * {
+ *   id: "pool123",
+ *   divisionId: "div456",
+ *   tournamentId: "tourn789",
+ *   name: "Pool A",
+ *   teams: ["Team 1", "Team 2", "Team 3", "Team 4"],
+ *   advancementCount: 2,
+ *   createdAt: Timestamp.now(),
+ *   updatedAt: Timestamp.now()
+ * }
+ */
 export interface Pool extends FirestoreDocument {
   divisionId: string;
   tournamentId: string;
@@ -134,6 +196,17 @@ export interface Pool extends FirestoreDocument {
   advancementCount?: number;
 }
 
+/**
+ * Bracket seed configuration
+ * 
+ * Defines how a team is positioned in a bracket, either manually assigned
+ * or automatically seeded from pool play results.
+ * 
+ * @property position - 1-based position in the bracket (1 = top seed)
+ * @property teamName - Optional team name if seed is assigned
+ * @property sourcePoolId - Optional reference to pool if seeded from pool play
+ * @property sourcePoolRank - Optional rank in source pool (1 = pool winner)
+ */
 export interface BracketSeed {
   position: number;
   teamName?: string;
@@ -141,6 +214,37 @@ export interface BracketSeed {
   sourcePoolRank?: number;
 }
 
+/**
+ * Bracket data model for single-elimination tournament play
+ * 
+ * A bracket is a single-elimination tournament structure where teams advance
+ * based on wins and are eliminated after losses. Supports standard bracket
+ * sizes (4, 8, 16, 32 teams).
+ * 
+ * @property divisionId - Reference to the division this bracket belongs to
+ * @property tournamentId - Reference to the tournament this bracket belongs to
+ * @property name - Display name for the bracket (e.g., "Gold Bracket", "Championship")
+ * @property size - Number of teams in the bracket (must be 4, 8, 16, or 32)
+ * @property seedingSource - How teams are seeded: 'manual' (admin assigns), 'pools' (from pool results), or 'mixed'
+ * @property seeds - Array of seed configurations defining team positions
+ * 
+ * @example
+ * {
+ *   id: "bracket123",
+ *   divisionId: "div456",
+ *   tournamentId: "tourn789",
+ *   name: "Gold Bracket",
+ *   size: 8,
+ *   seedingSource: "pools",
+ *   seeds: [
+ *     { position: 1, teamName: "Team A", sourcePoolId: "pool1", sourcePoolRank: 1 },
+ *     { position: 2, teamName: "Team B", sourcePoolId: "pool2", sourcePoolRank: 1 },
+ *     // ... more seeds
+ *   ],
+ *   createdAt: Timestamp.now(),
+ *   updatedAt: Timestamp.now()
+ * }
+ */
 export interface Bracket extends FirestoreDocument {
   divisionId: string;
   tournamentId: string;
@@ -150,15 +254,45 @@ export interface Bracket extends FirestoreDocument {
   seeds: BracketSeed[];
 }
 
-export interface PoolStanding {
+/**
+ * Team statistics computed from game results
+ * 
+ * Aggregated statistics for a team within a division, calculated from
+ * all completed games. Used for standings and team detail displays.
+ * 
+ * @property teamName - Name of the team
+ * @property divisionId - Division the team is competing in
+ * @property wins - Number of games won
+ * @property losses - Number of games lost
+ * @property pointsFor - Total points scored by the team
+ * @property pointsAgainst - Total points scored against the team
+ * @property pointDifferential - Difference between pointsFor and pointsAgainst
+ * @property gamesPlayed - Total number of completed games
+ * @property rank - Optional overall rank in division standings
+ */
+export interface TeamStats {
   teamName: string;
-  poolId: string;
+  divisionId: string;
   wins: number;
   losses: number;
   pointsFor: number;
   pointsAgainst: number;
   pointDifferential: number;
   gamesPlayed: number;
+  rank?: number;
+}
+
+/**
+ * Pool-specific team standings
+ * 
+ * Extends TeamStats with pool-specific information for displaying
+ * standings within a pool.
+ * 
+ * @property poolId - Reference to the pool
+ * @property poolRank - Rank within the pool (1 = first place)
+ */
+export interface PoolStanding extends TeamStats {
+  poolId: string;
   poolRank: number;
 }
 
@@ -179,6 +313,7 @@ export type RootStackParamList = {
   Main: undefined;
   TournamentDetail: { tournamentId: string };
   GameDetail: { gameId: string };
+  TeamDetail: { teamName: string; divisionId: string };
   ManageTournament: { tournamentId: string };
   BulkImport: undefined;
 };

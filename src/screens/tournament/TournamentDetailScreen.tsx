@@ -6,8 +6,9 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import { Tournament, RootStackParamList } from '../../types';
 import OverviewTab from './tabs/OverviewTab';
-import DivisionsTab from './tabs/DivisionsTab';
 import ScheduleTab from './tabs/ScheduleTab';
+import PoolsAndBracketsTab from './tabs/PoolsAndBracketsTab';
+import StandingsTab from './tabs/StandingsTab';
 
 type TournamentDetailRouteProp = RouteProp<RootStackParamList, 'TournamentDetail'>;
 
@@ -89,10 +90,16 @@ const TournamentDetailScreen: React.FC = () => {
         {() => <ScheduleTab tournamentId={tournamentId} />}
       </Tab.Screen>
       <Tab.Screen 
-        name="Divisions" 
-        options={{ tabBarLabel: 'Divisions' }}
+        name="PoolsAndBrackets" 
+        options={{ tabBarLabel: 'Pools & Brackets' }}
       >
-        {() => <DivisionsTab tournamentId={tournamentId} />}
+        {() => <PoolsAndBracketsTab tournamentId={tournamentId} />}
+      </Tab.Screen>
+      <Tab.Screen 
+        name="Standings" 
+        options={{ tabBarLabel: 'Standings' }}
+      >
+        {() => <StandingsTab tournamentId={tournamentId} />}
       </Tab.Screen>
     </Tab.Navigator>
   );

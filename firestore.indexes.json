@@ -55,6 +55,66 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "games",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bracketId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bracketRound",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bracketPosition",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "games",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "poolId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "poolGameNumber",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pools",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "divisionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "brackets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "divisionId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

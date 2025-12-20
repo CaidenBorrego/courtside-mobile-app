@@ -41,6 +41,12 @@ const BracketConfigurationScreen: React.FC = () => {
   });
   const [generatingGames, setGeneratingGames] = useState(false);
 
+  // Seed reordering state
+  const [showSeedReorderDialog, setShowSeedReorderDialog] = useState(false);
+  const [reorderingBracket, setReorderingBracket] = useState<Bracket | null>(null);
+  const [selectedSeedPosition, setSelectedSeedPosition] = useState<number | null>(null);
+  const [reorderingSeeds, setReorderingSeeds] = useState(false);
+
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -288,6 +294,51 @@ const BracketConfigurationScreen: React.FC = () => {
     }
   };
 
+  const handleOpenSeedReorder = (bracket: Bracket) => {
+    setReorderingBracket(bracket);
+    setSelectedSeedPosition(null);
+    setShowSeedReorderDialog(true);
+  };
+
+  const handleSelectSeedForSwap = (position: number) => {
+    if (selectedSeedPosition === null) {
+      // First selection
+      setSelectedSeedPosition(position);
+    } else if (selectedSeedPosition === position) {
+      // Deselect if clicking the same position
+      setSelectedSeedPosition(null);
+    } else {
+      // Second selection - perform swap
+      handleSwapSeeds(selectedSeedPosition, position);
+    }
+  };
+
+  const handleSwapSeeds = async (position1: number, position2: number) => {
+    if (!reorderingBracket) return;
+
+    try {
+      setReorderingSeeds(true);
+      await bracketService.swapBracketSeeds(reorderingBracket.id, position1, position2);
+      
+      // Reload data to show updated seeds
+      await loadData();
+      
+      // Update the reordering bracket with fresh data
+      const updatedBracket = await bracketService.getBracket(reorderingBracket.id);
+      setReorderingBracket(updatedBracket);
+      
+      // Clear selection
+      setSelectedSeedPosition(null);
+      
+      Alert.alert('Success', `Swapped seeds at positions ${position1} and ${position2}`);
+    } catch (error) {
+      console.error('Error swapping seeds:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to swap seeds');
+    } finally {
+      setReorderingSeeds(false);
+    }
+  };
+
   const handleDeleteBracket = async (bracket: Bracket) => {
     const games = bracketGames.get(bracket.id) || [];
     const hasGames = games.length > 0;
@@ -387,6 +438,11 @@ const BracketConfigurationScreen: React.FC = () => {
                     title="Edit"
                     mode="outlined"
                     onPress={() => handleEditBracket(bracket)}
+                  />
+                  <Button
+                    title="Reorder Seeds"
+                    mode="outlined"
+                    onPress={() => handleOpenSeedReorder(bracket)}
                   />
                   <Button
                     title="Delete"
@@ -551,6 +607,72 @@ const BracketConfigurationScreen: React.FC = () => {
               mode="contained"
               onPress={handleSaveBracket}
               disabled={generatingGames}
+            />
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Seed Reorder Dialog */}
+        <Dialog
+          visible={showSeedReorderDialog}
+          onDismiss={() => setShowSeedReorderDialog(false)}
+          style={styles.dialog}
+        >
+          <Dialog.Title>
+            Reorder Seeds - {reorderingBracket?.name}
+          </Dialog.Title>
+          <Dialog.ScrollArea>
+            <ScrollView>
+              <Text variant="bodyMedium" style={{ marginBottom: 16, color: '#6B7280' }}>
+                {selectedSeedPosition === null
+                  ? 'Tap a seed to select it, then tap another seed to swap positions.'
+                  : `Selected seed #${selectedSeedPosition}. Tap another seed to swap.`}
+              </Text>
+
+              {reorderingBracket && (
+                <View style={{ gap: 8 }}>
+                  {reorderingBracket.seeds.map((seed) => (
+                    <Card
+                      key={seed.position}
+                      style={{
+                        backgroundColor:
+                          selectedSeedPosition === seed.position
+                            ? '#DBEAFE'
+                            : '#FFFFFF',
+                      }}
+                      onPress={() => handleSelectSeedForSwap(seed.position)}
+                    >
+                      <Card.Content>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <View>
+                            <Text variant="titleMedium">Seed #{seed.position}</Text>
+                            <Text variant="bodyMedium" style={{ color: '#6B7280', marginTop: 4 }}>
+                              {seed.teamName || 'TBD'}
+                            </Text>
+                            {seed.sourcePoolId && (
+                              <Text variant="bodySmall" style={{ color: '#9CA3AF', marginTop: 2 }}>
+                                From pool (Rank {seed.sourcePoolRank})
+                              </Text>
+                            )}
+                          </View>
+                          {selectedSeedPosition === seed.position && (
+                            <Chip mode="flat" style={{ backgroundColor: '#3B82F6' }}>
+                              <Text style={{ color: '#FFFFFF' }}>Selected</Text>
+                            </Chip>
+                          )}
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button
+              title="Done"
+              mode="contained"
+              onPress={() => setShowSeedReorderDialog(false)}
+              disabled={reorderingSeeds}
             />
           </Dialog.Actions>
         </Dialog>

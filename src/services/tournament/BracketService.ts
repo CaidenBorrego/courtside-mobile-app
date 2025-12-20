@@ -22,6 +22,7 @@ import {
   PoolStanding,
 } from '../../types';
 import { poolService } from './PoolService';
+import { BracketValidator } from '../../utils/tournamentValidation';
 
 /**
  * Service for managing bracket tournament functionality including:
@@ -53,9 +54,24 @@ export class BracketService {
     seedingSource: 'manual' | 'pools' | 'mixed' = 'manual'
   ): Promise<Bracket> {
     try {
-      // Validate bracket size
-      if (![4, 8, 16, 32].includes(size)) {
-        throw new Error('Bracket size must be 4, 8, 16, or 32');
+      // Get existing brackets for validation
+      const existingBrackets = await this.getBracketsByDivision(divisionId);
+
+      // Validate bracket configuration
+      const validation = BracketValidator.validateBracketConfig(
+        name,
+        size,
+        seedingSource,
+        undefined,
+        existingBrackets
+      );
+
+      if (!validation.isValid) {
+        const errorMessages = validation.errors
+          .filter(e => e.severity === 'error')
+          .map(e => e.message)
+          .join('; ');
+        throw new Error(errorMessages);
       }
 
       // Initialize empty seeds
@@ -608,6 +624,65 @@ export class BracketService {
   }
 
   /**
+   * Get bracket rounds with lazy loading support
+   * Requirements: 5.1
+   * 
+   * Returns rounds in order from first to last, allowing UI to load rounds progressively
+   * 
+   * @param bracketId - The bracket ID
+   * @returns Array of round names in order
+   */
+  async getBracketRounds(bracketId: string): Promise<string[]> {
+    try {
+      const bracket = await this.getBracket(bracketId);
+      const numRounds = Math.log2(bracket.size);
+      
+      const rounds: string[] = [];
+      for (let round = 1; round <= numRounds; round++) {
+        rounds.push(this.getRoundName(round, numRounds));
+      }
+      
+      return rounds;
+    } catch (error) {
+      console.error('Error getting bracket rounds:', error);
+      throw new Error('Failed to get bracket rounds');
+    }
+  }
+
+  /**
+   * Get bracket state with lazy-loaded rounds
+   * Requirements: 5.1
+   * 
+   * This method returns bracket metadata and a function to load rounds on demand
+   * 
+   * @param bracketId - The bracket ID
+   * @returns Bracket with lazy loading function
+   */
+  async getBracketStateWithLazyLoading(bracketId: string): Promise<{
+    bracket: Bracket;
+    rounds: string[];
+    loadRound: (round: string) => Promise<Game[]>;
+  }> {
+    try {
+      const bracket = await this.getBracket(bracketId);
+      const rounds = await this.getBracketRounds(bracketId);
+
+      const loadRound = async (round: string): Promise<Game[]> => {
+        return this.getGamesByBracketRound(bracketId, round);
+      };
+
+      return {
+        bracket,
+        rounds,
+        loadRound,
+      };
+    } catch (error) {
+      console.error('Error getting bracket state with lazy loading:', error);
+      throw error instanceof Error ? error : new Error('Failed to get bracket state with lazy loading');
+    }
+  }
+
+  /**
    * Update bracket metadata (name, seeding source)
    * 
    * @param bracketId - The bracket ID
@@ -627,22 +702,130 @@ export class BracketService {
   }
 
   /**
+   * Manually update bracket seeds and regenerate first-round games
+   * Requirements: 4.2
+   * 
+   * This allows admins to manually adjust seed positions after automatic seeding
+   * or to manually seed a bracket from scratch.
+   * 
+   * @param bracketId - The bracket ID
+   * @param seeds - Updated array of bracket seeds
+   */
+  async updateBracketSeeds(bracketId: string, seeds: BracketSeed[]): Promise<void> {
+    try {
+      // Fetch bracket to validate
+      const bracket = await this.getBracket(bracketId);
+
+      // Validate seed configuration
+      const validation = BracketValidator.validateBracketConfig(
+        bracket.name,
+        bracket.size,
+        bracket.seedingSource,
+        seeds
+      );
+
+      if (!validation.isValid) {
+        const errorMessages = validation.errors
+          .filter(e => e.severity === 'error')
+          .map(e => e.message)
+          .join('; ');
+        throw new Error(errorMessages);
+      }
+
+      // Update bracket document with new seeds
+      await updateDoc(doc(this.bracketsCollection, bracketId), {
+        seeds,
+        updatedAt: Timestamp.now(),
+      });
+
+      // Update first-round bracket games with new seeded teams
+      await this.updateBracketGamesWithSeeds(bracketId, seeds);
+
+      console.log(`Successfully updated seeds for bracket ${bracketId}`);
+    } catch (error) {
+      console.error('Error updating bracket seeds:', error);
+      throw error instanceof Error ? error : new Error('Failed to update bracket seeds');
+    }
+  }
+
+  /**
+   * Reorder seeds in a bracket (swap two seed positions)
+   * Requirements: 4.2
+   * 
+   * @param bracketId - The bracket ID
+   * @param position1 - First seed position to swap
+   * @param position2 - Second seed position to swap
+   */
+  async swapBracketSeeds(bracketId: string, position1: number, position2: number): Promise<void> {
+    try {
+      // Fetch current bracket
+      const bracket = await this.getBracket(bracketId);
+
+      // Validate positions
+      if (position1 < 1 || position1 > bracket.size || position2 < 1 || position2 > bracket.size) {
+        throw new Error('Invalid seed positions');
+      }
+
+      if (position1 === position2) {
+        return; // No swap needed
+      }
+
+      // Create new seeds array with swapped positions
+      const newSeeds = [...bracket.seeds];
+      const seed1Index = position1 - 1;
+      const seed2Index = position2 - 1;
+
+      // Swap the team names and source info, but keep positions
+      const temp = {
+        teamName: newSeeds[seed1Index].teamName,
+        sourcePoolId: newSeeds[seed1Index].sourcePoolId,
+        sourcePoolRank: newSeeds[seed1Index].sourcePoolRank,
+      };
+
+      newSeeds[seed1Index] = {
+        position: position1,
+        teamName: newSeeds[seed2Index].teamName,
+        sourcePoolId: newSeeds[seed2Index].sourcePoolId,
+        sourcePoolRank: newSeeds[seed2Index].sourcePoolRank,
+      };
+
+      newSeeds[seed2Index] = {
+        position: position2,
+        teamName: temp.teamName,
+        sourcePoolId: temp.sourcePoolId,
+        sourcePoolRank: temp.sourcePoolRank,
+      };
+
+      // Update bracket with swapped seeds
+      await this.updateBracketSeeds(bracketId, newSeeds);
+
+      console.log(`Swapped seeds at positions ${position1} and ${position2} in bracket ${bracketId}`);
+    } catch (error) {
+      console.error('Error swapping bracket seeds:', error);
+      throw error instanceof Error ? error : new Error('Failed to swap bracket seeds');
+    }
+  }
+
+  /**
    * Delete a bracket and all associated games
    * 
    * @param bracketId - The bracket ID to delete
    */
   async deleteBracket(bracketId: string): Promise<void> {
     try {
-      // Get all games for this bracket
+      // Get bracket and its games
+      const bracket = await this.getBracket(bracketId);
       const games = await this.getGamesByBracket(bracketId);
 
-      // Check if any games have been completed
-      const hasCompletedGames = games.some(
-        game => game.status === GameStatus.COMPLETED
-      );
+      // Validate deletion
+      const validation = BracketValidator.validateBracketDeletion(bracket, games);
 
-      if (hasCompletedGames) {
-        throw new Error('Cannot delete bracket: some games have already been completed');
+      if (!validation.isValid) {
+        const errorMessages = validation.errors
+          .filter(e => e.severity === 'error')
+          .map(e => e.message)
+          .join('; ');
+        throw new Error(errorMessages);
       }
 
       // Delete bracket and all its games in a batch
@@ -702,6 +885,91 @@ export class BracketService {
     } catch (error) {
       console.error('Error getting bracket state:', error);
       throw error instanceof Error ? error : new Error('Failed to get bracket state');
+    }
+  }
+
+  /**
+   * Batch load multiple bracket states efficiently
+   * Requirements: 8.5
+   * 
+   * This method optimizes loading multiple brackets by:
+   * 1. Fetching all brackets in parallel
+   * 2. Fetching all games for the division in a single query
+   * 3. Organizing games by bracket
+   * 
+   * @param divisionId - The division ID
+   * @returns Array of bracket states
+   */
+  async getBracketStatesByDivision(divisionId: string): Promise<Array<{
+    bracket: Bracket;
+    gamesByRound: Map<string, Game[]>;
+  }>> {
+    try {
+      // Fetch all brackets for the division
+      const brackets = await this.getBracketsByDivision(divisionId);
+
+      if (brackets.length === 0) {
+        return [];
+      }
+
+      // Fetch all games for all brackets in a single query
+      const bracketIds = brackets.map(b => b.id);
+      const allGames: Game[] = [];
+
+      // Firestore 'in' queries are limited to 10 items, so batch if needed
+      const batchSize = 10;
+      for (let i = 0; i < bracketIds.length; i += batchSize) {
+        const batchIds = bracketIds.slice(i, i + batchSize);
+        const q = query(
+          this.gamesCollection,
+          where('bracketId', 'in', batchIds)
+        );
+        const querySnapshot = await getDocs(q);
+        const batchGames = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Game));
+        allGames.push(...batchGames);
+      }
+
+      // Organize games by bracket
+      const gamesByBracket = new Map<string, Game[]>();
+      allGames.forEach(game => {
+        if (!gamesByBracket.has(game.bracketId!)) {
+          gamesByBracket.set(game.bracketId!, []);
+        }
+        gamesByBracket.get(game.bracketId!)!.push(game);
+      });
+
+      // Build bracket states
+      const bracketStates = brackets.map(bracket => {
+        const games = gamesByBracket.get(bracket.id) || [];
+        
+        // Organize games by round
+        const gamesByRound = new Map<string, Game[]>();
+        games.forEach(game => {
+          const round = game.bracketRound || 'Unknown';
+          if (!gamesByRound.has(round)) {
+            gamesByRound.set(round, []);
+          }
+          gamesByRound.get(round)!.push(game);
+        });
+
+        // Sort games within each round by position
+        gamesByRound.forEach(roundGames => {
+          roundGames.sort((a, b) => (a.bracketPosition || 0) - (b.bracketPosition || 0));
+        });
+
+        return {
+          bracket,
+          gamesByRound,
+        };
+      });
+
+      return bracketStates;
+    } catch (error) {
+      console.error('Error batch loading bracket states:', error);
+      throw error instanceof Error ? error : new Error('Failed to batch load bracket states');
     }
   }
 }

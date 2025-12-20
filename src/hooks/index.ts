@@ -5,3 +5,4 @@ export { useFirestoreListener, useConditionalFirestoreListener } from './useFire
 export { useOptimizedFlatList, usePagination } from './useOptimizedFlatList';
 export { useDataSync } from './useDataSync';
 export { useTheme } from './useTheme';
+export { useGameCompletion } from './useGameCompletion';

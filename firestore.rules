@@ -31,10 +31,17 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Games - public read, admin write
+    // Games - public read, admin write with structure validation
     match /games/{gameId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && 
+        // Prevent unauthorized changes to structure fields
+        (!request.resource.data.keys().hasAny(['poolId', 'bracketId']) ||
+         // If structure fields exist, they must not change from original values
+         (!resource.data.keys().hasAny(['poolId']) || request.resource.data.poolId == resource.data.poolId) &&
+         (!resource.data.keys().hasAny(['bracketId']) || request.resource.data.bracketId == resource.data.bracketId));
+      allow delete: if isAdmin();
     }
     
     // Divisions - public read, admin write
@@ -55,6 +62,18 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if isOwner(userId);
       allow delete: if isAdmin();
+    }
+    
+    // Pools - authenticated read, admin write
+    match /pools/{poolId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Brackets - authenticated read, admin write
+    match /brackets/{bracketId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
   }
 }

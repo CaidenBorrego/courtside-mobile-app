@@ -13,6 +13,11 @@ import {
 } from '../../types';
 import { poolService } from './PoolService';
 import { bracketService } from './BracketService';
+import {
+  PoolValidator,
+  BracketValidator,
+  HybridTournamentValidator,
+} from '../../utils/tournamentValidation';
 
 /**
  * Validation result for tournament structure
@@ -290,61 +295,30 @@ export class TournamentStructureService {
     errors: string[],
     warnings: string[]
   ): Promise<void> {
-    // Check for duplicate pool names
-    const poolNames = pools.map(p => p.name);
-    const duplicateNames = poolNames.filter(
-      (name, index) => poolNames.indexOf(name) !== index
-    );
-    if (duplicateNames.length > 0) {
-      errors.push(`Duplicate pool names found: ${duplicateNames.join(', ')}`);
-    }
-
-    // Validate each pool
+    // Validate each pool individually
     for (const pool of pools) {
-      // Check minimum teams
-      if (pool.teams.length < 2) {
-        errors.push(`Pool "${pool.name}" must have at least 2 teams`);
-      }
+      const validation = PoolValidator.validatePoolConfig(
+        pool.name,
+        pool.teams,
+        pool.advancementCount,
+        pools.filter(p => p.id !== pool.id)
+      );
 
-      // Check maximum teams
-      if (pool.teams.length > 16) {
-        errors.push(`Pool "${pool.name}" cannot have more than 16 teams`);
-      }
-
-      // Check for duplicate teams within pool
-      const uniqueTeams = new Set(pool.teams);
-      if (uniqueTeams.size !== pool.teams.length) {
-        errors.push(`Pool "${pool.name}" has duplicate team assignments`);
-      }
-
-      // Check advancement count
-      if (pool.advancementCount !== undefined) {
-        if (pool.advancementCount > pool.teams.length) {
-          errors.push(
-            `Pool "${pool.name}" advancement count (${pool.advancementCount}) exceeds team count (${pool.teams.length})`
-          );
+      validation.errors.forEach(error => {
+        const message = `Pool "${pool.name}": ${error.message}`;
+        if (error.severity === 'error') {
+          errors.push(message);
+        } else {
+          warnings.push(message);
         }
-        if (pool.advancementCount < 0) {
-          errors.push(`Pool "${pool.name}" advancement count cannot be negative`);
-        }
-      }
+      });
     }
 
-    // Check for teams in multiple pools
-    const allTeams: string[] = [];
-    pools.forEach(pool => allTeams.push(...pool.teams));
-    const teamCounts = new Map<string, number>();
-    allTeams.forEach(team => {
-      teamCounts.set(team, (teamCounts.get(team) || 0) + 1);
+    // Check for team conflicts across pools
+    const conflictValidation = PoolValidator.validateTeamConflicts(pools);
+    conflictValidation.errors.forEach(error => {
+      errors.push(error.message);
     });
-    
-    const duplicateTeams = Array.from(teamCounts.entries())
-      .filter(([_, count]) => count > 1)
-      .map(([team, _]) => team);
-    
-    if (duplicateTeams.length > 0) {
-      errors.push(`Teams assigned to multiple pools: ${duplicateTeams.join(', ')}`);
-    }
   }
 
   /**
@@ -355,51 +329,24 @@ export class TournamentStructureService {
     errors: string[],
     warnings: string[]
   ): Promise<void> {
-    // Check for duplicate bracket names
-    const bracketNames = brackets.map(b => b.name);
-    const duplicateNames = bracketNames.filter(
-      (name, index) => bracketNames.indexOf(name) !== index
-    );
-    if (duplicateNames.length > 0) {
-      errors.push(`Duplicate bracket names found: ${duplicateNames.join(', ')}`);
-    }
-
-    // Validate each bracket
+    // Validate each bracket individually
     for (const bracket of brackets) {
-      // Validate bracket size
-      if (![4, 8, 16, 32].includes(bracket.size)) {
-        errors.push(`Bracket "${bracket.name}" has invalid size: ${bracket.size}`);
-      }
+      const validation = BracketValidator.validateBracketConfig(
+        bracket.name,
+        bracket.size,
+        bracket.seedingSource,
+        bracket.seeds,
+        brackets.filter(b => b.id !== bracket.id)
+      );
 
-      // Check if seeds are properly configured
-      if (bracket.seeds.length !== bracket.size) {
-        errors.push(
-          `Bracket "${bracket.name}" seed count (${bracket.seeds.length}) does not match bracket size (${bracket.size})`
-        );
-      }
-
-      // For manual seeding, check if all seeds have teams
-      if (bracket.seedingSource === 'manual') {
-        const unseededPositions = bracket.seeds
-          .filter(seed => !seed.teamName)
-          .map(seed => seed.position);
-        
-        if (unseededPositions.length > 0) {
-          warnings.push(
-            `Bracket "${bracket.name}" has unseeded positions: ${unseededPositions.join(', ')}`
-          );
+      validation.errors.forEach(error => {
+        const message = `Bracket "${bracket.name}": ${error.message}`;
+        if (error.severity === 'error') {
+          errors.push(message);
+        } else {
+          warnings.push(message);
         }
-      }
-
-      // Check for duplicate team assignments in bracket
-      const seededTeams = bracket.seeds
-        .filter(seed => seed.teamName)
-        .map(seed => seed.teamName!);
-      
-      const uniqueSeededTeams = new Set(seededTeams);
-      if (uniqueSeededTeams.size !== seededTeams.length) {
-        errors.push(`Bracket "${bracket.name}" has duplicate team assignments`);
-      }
+      });
     }
   }
 
@@ -412,48 +359,18 @@ export class TournamentStructureService {
     errors: string[],
     warnings: string[]
   ): Promise<void> {
-    // Calculate total advancing teams from pools
-    let totalAdvancingTeams = 0;
-    pools.forEach(pool => {
-      if (pool.advancementCount) {
-        totalAdvancingTeams += pool.advancementCount;
+    const validation = HybridTournamentValidator.validateAdvancementConfiguration(
+      pools,
+      brackets
+    );
+
+    validation.errors.forEach(error => {
+      if (error.severity === 'error') {
+        errors.push(error.message);
+      } else {
+        warnings.push(error.message);
       }
     });
-
-    // Calculate total bracket capacity
-    const totalBracketCapacity = brackets.reduce((sum, bracket) => sum + bracket.size, 0);
-
-    // Check if advancement counts match bracket capacity
-    const poolSeededBrackets = brackets.filter(
-      b => b.seedingSource === 'pools' || b.seedingSource === 'mixed'
-    );
-    
-    if (poolSeededBrackets.length > 0) {
-      const poolSeededCapacity = poolSeededBrackets.reduce(
-        (sum, bracket) => sum + bracket.size,
-        0
-      );
-
-      if (totalAdvancingTeams > poolSeededCapacity) {
-        warnings.push(
-          `More teams advancing from pools (${totalAdvancingTeams}) than bracket capacity (${poolSeededCapacity})`
-        );
-      }
-
-      if (totalAdvancingTeams < poolSeededCapacity) {
-        warnings.push(
-          `Fewer teams advancing from pools (${totalAdvancingTeams}) than bracket capacity (${poolSeededCapacity})`
-        );
-      }
-
-      // Check if pools have advancement counts set
-      const poolsWithoutAdvancement = pools.filter(p => !p.advancementCount);
-      if (poolsWithoutAdvancement.length > 0) {
-        warnings.push(
-          `Pools without advancement count: ${poolsWithoutAdvancement.map(p => p.name).join(', ')}`
-        );
-      }
-    }
   }
 
   /**

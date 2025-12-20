@@ -84,7 +84,7 @@ describe('TournamentDetailScreen', () => {
     await waitFor(() => {
       expect(getAllByText('Overview').length).toBeGreaterThan(0);
       expect(getAllByText('Schedule').length).toBeGreaterThan(0);
-      expect(getAllByText('Divisions').length).toBeGreaterThan(0);
+      expect(getAllByText('Pools & Brackets').length).toBeGreaterThan(0);
     });
   });
 
@@ -135,7 +135,7 @@ describe('TournamentDetailScreen', () => {
     const { getAllByText } = renderComponent();
     
     await waitFor(() => {
-      expect(getAllByText('Divisions').length).toBeGreaterThan(0);
+      expect(getAllByText('Pools & Brackets').length).toBeGreaterThan(0);
     });
     
     // Simulate real-time update
@@ -150,7 +150,7 @@ describe('TournamentDetailScreen', () => {
     
     // The tabs should still be visible after update
     await waitFor(() => {
-      expect(getAllByText('Divisions').length).toBeGreaterThan(0);
+      expect(getAllByText('Pools & Brackets').length).toBeGreaterThan(0);
     });
   });
 });

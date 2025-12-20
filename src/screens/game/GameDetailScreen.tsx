@@ -4,7 +4,7 @@ import { Text, Button, Card, Chip } from 'react-native-paper';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import { userProfileService } from '../../services/user';
-import { useAuth } from '../../hooks';
+import { useAuth, useGameCompletion } from '../../hooks';
 import { openMaps } from '../../utils';
 import { Game, Location, GameStatus, RootStackParamList } from '../../types';
 
@@ -21,6 +21,9 @@ const GameDetailScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Automatically advance winner when bracket game is completed
+  useGameCompletion(game);
 
   // Set up real-time listener for game updates
   useEffect(() => {
@@ -195,7 +198,44 @@ const GameDetailScreen: React.FC = () => {
             >
               {getStatusLabel(game.status)}
             </Chip>
+            {game.gameLabel && (
+              <Chip
+                mode="outlined"
+                style={styles.gameLabelChip}
+                textStyle={styles.gameLabelText}
+              >
+                {game.gameLabel}
+              </Chip>
+            )}
           </View>
+
+          {/* Advancement Info for Bracket Games */}
+          {game.status === GameStatus.COMPLETED && game.bracketId && game.feedsIntoGame && (
+            <Card style={styles.advancementCard}>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.advancementTitle}>
+                  🏆 Winner Advances
+                </Text>
+                <Text variant="bodyMedium" style={styles.advancementText}>
+                  {game.scoreA > game.scoreB ? game.teamA : game.teamB} advances to the next round
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
+
+          {/* Championship Winner */}
+          {game.status === GameStatus.COMPLETED && game.bracketId && !game.feedsIntoGame && game.bracketRound === 'Finals' && (
+            <Card style={styles.championCard}>
+              <Card.Content>
+                <Text variant="titleLarge" style={styles.championTitle}>
+                  🏆 Champion!
+                </Text>
+                <Text variant="headlineSmall" style={styles.championText}>
+                  {game.scoreA > game.scoreB ? game.teamA : game.teamB}
+                </Text>
+              </Card.Content>
+            </Card>
+          )}
 
           {/* Teams and Scores */}
           <View style={styles.teamsContainer}>
@@ -333,6 +373,7 @@ const styles = StyleSheet.create({
   statusContainer: {
     alignItems: 'center',
     marginBottom: 16,
+    gap: 8,
   },
   statusChip: {
     paddingHorizontal: 12,
@@ -340,6 +381,44 @@ const styles = StyleSheet.create({
   statusText: {
     color: '#fff',
     fontWeight: '600',
+  },
+  gameLabelChip: {
+    marginTop: 8,
+  },
+  gameLabelText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  advancementCard: {
+    marginBottom: 16,
+    backgroundColor: '#E8F5E9',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  advancementTitle: {
+    fontWeight: '700',
+    color: '#2E7D32',
+    marginBottom: 4,
+  },
+  advancementText: {
+    color: '#1B5E20',
+  },
+  championCard: {
+    marginBottom: 16,
+    backgroundColor: '#FFF9C4',
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFC107',
+  },
+  championTitle: {
+    fontWeight: '700',
+    color: '#F57F17',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  championText: {
+    fontWeight: '700',
+    color: '#F57F17',
+    textAlign: 'center',
   },
   teamsContainer: {
     marginVertical: 16,

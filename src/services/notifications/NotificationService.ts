@@ -234,6 +234,59 @@ class NotificationService {
   }
 
   /**
+   * Send a notification for team advancement in bracket
+   * @param teamName - Name of the advancing team
+   * @param fromRound - Round the team is advancing from
+   * @param toRound - Round the team is advancing to
+   * @param bracketName - Name of the bracket
+   * @returns Promise<string> - Notification identifier
+   */
+  async sendTeamAdvancementNotification(
+    teamName: string,
+    fromRound: string,
+    toRound: string,
+    bracketName: string
+  ): Promise<string> {
+    return this.scheduleLocalNotification(
+      'Team Advanced!',
+      `${teamName} has advanced from ${fromRound} to ${toRound} in ${bracketName}`,
+      1, // Send immediately (1 second from now)
+      {
+        type: 'team-advancement',
+        teamName,
+        fromRound,
+        toRound,
+        bracketName,
+      }
+    );
+  }
+
+  /**
+   * Send a notification for pool completion and bracket seeding
+   * @param divisionName - Name of the division
+   * @param poolCount - Number of pools completed
+   * @param bracketCount - Number of brackets seeded
+   * @returns Promise<string> - Notification identifier
+   */
+  async sendPoolCompletionNotification(
+    divisionName: string,
+    poolCount: number,
+    bracketCount: number
+  ): Promise<string> {
+    return this.scheduleLocalNotification(
+      'Pool Play Complete!',
+      `${poolCount} pool${poolCount > 1 ? 's' : ''} completed in ${divisionName}. ${bracketCount} bracket${bracketCount > 1 ? 's' : ''} have been seeded.`,
+      1, // Send immediately (1 second from now)
+      {
+        type: 'pool-completion',
+        divisionName,
+        poolCount,
+        bracketCount,
+      }
+    );
+  }
+
+  /**
    * Cancel a scheduled notification
    * @param identifier - Notification identifier to cancel
    */

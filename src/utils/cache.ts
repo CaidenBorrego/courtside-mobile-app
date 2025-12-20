@@ -127,4 +127,7 @@ export const CacheKeys = {
   DIVISIONS: (tournamentId: string) => `divisions_${tournamentId}`,
   USER_PROFILE: (uid: string) => `user_profile_${uid}`,
   LOCATIONS: 'locations',
+  POOL_STANDINGS: (poolId: string) => `pool_standings_${poolId}`,
+  DIVISION_STANDINGS: (divisionId: string) => `division_standings_${divisionId}`,
+  TEAM_STATS: (teamName: string, divisionId: string) => `team_stats_${teamName}_${divisionId}`,
 };

@@ -10,6 +10,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import { TournamentDetailScreen } from '../screens/tournament';
 import { GameDetailScreen } from '../screens/game';
+import { TeamDetailScreen } from '../screens/team';
 import { ManageTournamentScreen, BulkImportScreen } from '../screens/admin';
 import { RootStackParamList } from '../types';
 
@@ -93,6 +94,21 @@ const RootNavigator: React.FC = () => {
               options={{
                 headerShown: true,
                 title: 'Game Details',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="TeamDetail" 
+              component={TeamDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Team Details',
                 headerStyle: {
                   backgroundColor: '#000000',
                 },

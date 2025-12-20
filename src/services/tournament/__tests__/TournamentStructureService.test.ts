@@ -535,7 +535,7 @@ describe('TournamentStructureService', () => {
       const result = await service.validateStructure('division-1');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Duplicate pool names found: Pool A');
+      expect(result.errors.some(e => e.includes('Pool name "Pool A" is already in use'))).toBe(true);
     });
 
     it('should detect pools with too few teams', async () => {
@@ -570,7 +570,7 @@ describe('TournamentStructureService', () => {
       const result = await service.validateStructure('division-1');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Pool "Pool A" must have at least 2 teams');
+      expect(result.errors.some(e => e.includes('Pool must have at least 2 teams'))).toBe(true);
     });
 
     it('should detect teams in multiple pools', async () => {
@@ -613,7 +613,7 @@ describe('TournamentStructureService', () => {
       const result = await service.validateStructure('division-1');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Teams assigned to multiple pools: Team 2');
+      expect(result.errors.some(e => e.includes('is assigned to multiple pools'))).toBe(true);
     });
 
     it('should detect invalid bracket sizes', async () => {
@@ -650,7 +650,7 @@ describe('TournamentStructureService', () => {
       const result = await service.validateStructure('division-1');
 
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Bracket "Gold Bracket" has invalid size: 6');
+      expect(result.errors.some(e => e.includes('Bracket size must be 4, 8, 16, or 32'))).toBe(true);
     });
 
     it('should warn about unseeded manual brackets', async () => {
@@ -691,9 +691,7 @@ describe('TournamentStructureService', () => {
 
       const result = await service.validateStructure('division-1');
 
-      expect(result.warnings).toContain(
-        'Bracket "Gold Bracket" has unseeded positions: 1, 2, 3, 4'
-      );
+      expect(result.warnings.some(w => w.includes('seed position(s) are not assigned'))).toBe(true);
     });
   });
 });

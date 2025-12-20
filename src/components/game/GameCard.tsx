@@ -5,6 +5,7 @@ import { Game, GameStatus } from '../../types';
 import { format } from 'date-fns';
 import { useTheme } from '../../hooks/useTheme';
 import FollowButton from '../common/FollowButton';
+import { generateGameLabel, formatTeamName, isPlaceholderTeam } from '../../utils/gameLabels';
 
 interface GameCardProps {
   game: Game;
@@ -29,6 +30,8 @@ const GameCard: React.FC<GameCardProps> = ({
       return 'Time TBD';
     }
   };
+
+  const gameLabel = generateGameLabel(game);
 
   const getStatusLabel = (status: GameStatus) => {
     switch (status) {
@@ -87,7 +90,7 @@ const GameCard: React.FC<GameCardProps> = ({
   return (
     <View style={styles.container}>
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {/* Header */}
+        {/* Header with Game Label */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
@@ -99,6 +102,16 @@ const GameCard: React.FC<GameCardProps> = ({
                 <Text style={[styles.courtText, { color: colors.textSecondary }]}>
                   Court {game.court}
                 </Text>
+              </>
+            )}
+            {gameLabel && gameLabel.trim() !== '' && (
+              <>
+                <Text style={[styles.separator, { color: colors.textTertiary }]}>•</Text>
+                <View style={[styles.gameLabelBadge, { backgroundColor: colors.textSecondary }]}>
+                  <Text style={[styles.gameLabelText, { color: '#FFFFFF' }]}>
+                    {gameLabel}
+                  </Text>
+                </View>
               </>
             )}
           </View>
@@ -115,7 +128,11 @@ const GameCard: React.FC<GameCardProps> = ({
         <View style={styles.teamSection}>
           <Image
             source={{ uri: game.teamAImageUrl || DEFAULT_TEAM_IMAGE }}
-            style={[styles.teamImage, { backgroundColor: colors.imagePlaceholder }]}
+            style={[
+              styles.teamImage, 
+              { backgroundColor: colors.imagePlaceholder },
+              isPlaceholderTeam(game.teamA) && styles.placeholderImage
+            ]}
             resizeMode="cover"
           />
           <Text 
@@ -126,11 +143,12 @@ const GameCard: React.FC<GameCardProps> = ({
                   ? colors.textTertiary 
                   : colors.text 
               },
-              game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText
+              game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText,
+              isPlaceholderTeam(game.teamA) && { color: colors.textTertiary, fontStyle: 'italic' }
             ]}
             numberOfLines={2}
           >
-            {game.teamA}
+            {formatTeamName(game.teamA)}
           </Text>
         </View>
 
@@ -141,7 +159,11 @@ const GameCard: React.FC<GameCardProps> = ({
         <View style={styles.teamSection}>
           <Image
             source={{ uri: game.teamBImageUrl || DEFAULT_TEAM_IMAGE }}
-            style={[styles.teamImage, { backgroundColor: colors.imagePlaceholder }]}
+            style={[
+              styles.teamImage, 
+              { backgroundColor: colors.imagePlaceholder },
+              isPlaceholderTeam(game.teamB) && styles.placeholderImage
+            ]}
             resizeMode="cover"
           />
           <Text 
@@ -152,11 +174,12 @@ const GameCard: React.FC<GameCardProps> = ({
                   ? colors.textTertiary 
                   : colors.text 
               },
-              game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText
+              game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText,
+              isPlaceholderTeam(game.teamB) && { color: colors.textTertiary, fontStyle: 'italic' }
             ]}
             numberOfLines={2}
           >
-            {game.teamB}
+            {formatTeamName(game.teamB)}
           </Text>
         </View>
       </View>
@@ -268,6 +291,19 @@ const styles = StyleSheet.create({
   followButtonContainer: {
     marginTop: 16,
     alignItems: 'center',
+  },
+  gameLabelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  gameLabelText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  placeholderImage: {
+    opacity: 0.4,
   },
 });
 

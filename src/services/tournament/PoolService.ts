@@ -20,6 +20,9 @@ import {
   UpdatePoolData,
   GameStatus,
 } from '../../types';
+import { PoolValidator } from '../../utils/tournamentValidation';
+import { TiedStandingsResolver } from '../../utils/edgeCaseHandlers';
+import { cacheData, getCachedData, clearCache, CacheKeys } from '../../utils/cache';
 
 /**
  * Service for managing pool play functionality including:
@@ -27,10 +30,13 @@ import {
  * - Round-robin game generation
  * - Pool standings calculation
  * - Team advancement logic
+ * 
+ * Implements caching for performance optimization (Requirement 6.1)
  */
 export class PoolService {
   private readonly poolsCollection = collection(db, 'pools');
   private readonly gamesCollection = collection(db, 'games');
+  private readonly CACHE_EXPIRY_MINUTES = 5; // Cache for 5 minutes
 
   /**
    * Create a new pool and optionally generate round-robin games
@@ -51,19 +57,23 @@ export class PoolService {
     advancementCount?: number
   ): Promise<Pool> {
     try {
-      // Validate input
-      if (teams.length < 2) {
-        throw new Error('Pool must have at least 2 teams');
-      }
+      // Get existing pools for validation
+      const existingPools = await this.getPoolsByDivision(divisionId);
 
-      if (teams.length > 16) {
-        throw new Error('Pool cannot have more than 16 teams');
-      }
+      // Validate pool configuration
+      const validation = PoolValidator.validatePoolConfig(
+        name,
+        teams,
+        advancementCount,
+        existingPools
+      );
 
-      // Check for duplicate team names
-      const uniqueTeams = new Set(teams);
-      if (uniqueTeams.size !== teams.length) {
-        throw new Error('Pool cannot have duplicate team names');
+      if (!validation.isValid) {
+        const errorMessages = validation.errors
+          .filter(e => e.severity === 'error')
+          .map(e => e.message)
+          .join('; ');
+        throw new Error(errorMessages);
       }
 
       // Create pool data
@@ -240,6 +250,50 @@ export class PoolService {
   }
 
   /**
+   * Get paginated games for a specific pool
+   * Requirements: 5.1
+   * 
+   * @param poolId - The pool ID
+   * @param limit - Maximum number of games to return
+   * @param offset - Number of games to skip
+   * @returns Paginated array of games
+   */
+  async getGamesByPoolPaginated(
+    poolId: string,
+    limit: number = 20,
+    offset: number = 0
+  ): Promise<{ games: Game[]; hasMore: boolean; total: number }> {
+    try {
+      // Get total count first
+      const allGamesQuery = query(
+        this.gamesCollection,
+        where('poolId', '==', poolId)
+      );
+      const allGamesSnapshot = await getDocs(allGamesQuery);
+      const total = allGamesSnapshot.size;
+
+      // Get paginated games
+      const games = allGamesSnapshot.docs
+        .slice(offset, offset + limit)
+        .map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        } as Game));
+
+      const hasMore = offset + limit < total;
+
+      return {
+        games,
+        hasMore,
+        total,
+      };
+    } catch (error) {
+      console.error('Error fetching paginated pool games:', error);
+      throw new Error('Failed to fetch paginated pool games');
+    }
+  }
+
+  /**
    * Calculate current standings for a pool
    * Requirements: 6.1, 6.2, 3.3
    * 
@@ -247,11 +301,23 @@ export class PoolService {
    * 1. Wins (descending)
    * 2. Point differential (descending)
    * 
+   * Uses caching to improve performance (Requirement 6.1)
+   * 
    * @param poolId - The pool ID
+   * @param useCache - Whether to use cached data (default: true)
    * @returns Array of pool standings sorted by rank
    */
-  async calculateStandings(poolId: string): Promise<PoolStanding[]> {
+  async calculateStandings(poolId: string, useCache: boolean = true): Promise<PoolStanding[]> {
     try {
+      // Check cache first
+      if (useCache) {
+        const cacheKey = CacheKeys.POOL_STANDINGS(poolId);
+        const cached = await getCachedData<PoolStanding[]>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      }
+
       // Fetch pool and its games
       const pool = await this.getPool(poolId);
       const games = await this.getGamesByPool(poolId);
@@ -262,6 +328,7 @@ export class PoolService {
       pool.teams.forEach(teamName => {
         standingsMap.set(teamName, {
           teamName,
+          divisionId: pool.divisionId,
           poolId: pool.id,
           wins: 0,
           losses: 0,
@@ -310,6 +377,7 @@ export class PoolService {
       // Convert to array and sort
       const standings = Array.from(standingsMap.values());
       
+      // Initial sort by wins and point differential
       standings.sort((a, b) => {
         // First by wins (descending)
         if (b.wins !== a.wins) {
@@ -319,12 +387,14 @@ export class PoolService {
         return b.pointDifferential - a.pointDifferential;
       });
 
-      // Assign ranks
-      standings.forEach((standing, index) => {
-        standing.poolRank = index + 1;
-      });
+      // Resolve ties using comprehensive tiebreaker rules
+      const resolvedStandings = TiedStandingsResolver.resolveTies(standings, games);
 
-      return standings;
+      // Cache the result
+      const cacheKey = CacheKeys.POOL_STANDINGS(poolId);
+      await cacheData(cacheKey, resolvedStandings, { expiryMinutes: this.CACHE_EXPIRY_MINUTES });
+
+      return resolvedStandings;
     } catch (error) {
       console.error('Error calculating pool standings:', error);
       throw error instanceof Error ? error : new Error('Failed to calculate standings');
@@ -375,31 +445,22 @@ export class PoolService {
    */
   async updatePoolTeams(poolId: string, teams: string[]): Promise<string[]> {
     try {
-      // Validate input
-      if (teams.length < 2) {
-        throw new Error('Pool must have at least 2 teams');
-      }
-
-      if (teams.length > 16) {
-        throw new Error('Pool cannot have more than 16 teams');
-      }
-
-      // Check for duplicate team names
-      const uniqueTeams = new Set(teams);
-      if (uniqueTeams.size !== teams.length) {
-        throw new Error('Pool cannot have duplicate team names');
-      }
-
       // Get existing games
       const existingGames = await this.getGamesByPool(poolId);
 
-      // Check if any games have been completed
-      const hasCompletedGames = existingGames.some(
-        game => game.status === GameStatus.COMPLETED
+      // Validate pool update
+      const validation = PoolValidator.validatePoolUpdate(
+        poolId,
+        { teams },
+        existingGames
       );
 
-      if (hasCompletedGames) {
-        throw new Error('Cannot update pool teams: some games have already been completed');
+      if (!validation.isValid) {
+        const errorMessages = validation.errors
+          .filter(e => e.severity === 'error')
+          .map(e => e.message)
+          .join('; ');
+        throw new Error(errorMessages);
       }
 
       // Delete existing pool games
@@ -472,9 +533,28 @@ export class PoolService {
         ...updates,
         updatedAt: Timestamp.now(),
       });
+
+      // Invalidate cache
+      await this.invalidatePoolCache(poolId);
     } catch (error) {
       console.error('Error updating pool:', error);
       throw error instanceof Error ? error : new Error('Failed to update pool');
+    }
+  }
+
+  /**
+   * Invalidate cached standings for a pool
+   * Should be called when a pool game is completed or pool is updated
+   * Requirements: 6.1
+   * 
+   * @param poolId - The pool ID
+   */
+  async invalidatePoolCache(poolId: string): Promise<void> {
+    try {
+      const cacheKey = CacheKeys.POOL_STANDINGS(poolId);
+      await clearCache(cacheKey);
+    } catch (error) {
+      console.error('Error invalidating pool cache:', error);
     }
   }
 }

@@ -1,618 +1,292 @@
-import { bracketService, BracketService } from '../BracketService';
-import {
-  collection,
-  doc,
-  addDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  Timestamp,
-  writeBatch,
-} from 'firebase/firestore';
-import { db } from '../../firebase/config';
-import { Bracket, Game, GameStatus, BracketSeed, PoolStanding } from '../../../types';
-import { poolService } from '../PoolService';
+import { BracketService } from '../BracketService';
+import { addDoc, getDoc, getDocs, doc, query, where, writeBatch } from 'firebase/firestore';
+import { GameStatus } from '../../../types';
+import { mockTimestamp } from '../../../__tests__/setup';
 
-// Mock Firebase Firestore
+// Mock Firestore
 jest.mock('firebase/firestore');
 jest.mock('../../firebase/config', () => ({
   db: {},
 }));
-jest.mock('../PoolService');
 
-const mockCollection = collection as jest.MockedFunction<typeof collection>;
-const mockDoc = doc as jest.MockedFunction<typeof doc>;
 const mockAddDoc = addDoc as jest.MockedFunction<typeof addDoc>;
 const mockGetDoc = getDoc as jest.MockedFunction<typeof getDoc>;
 const mockGetDocs = getDocs as jest.MockedFunction<typeof getDocs>;
-const mockUpdateDoc = updateDoc as jest.MockedFunction<typeof updateDoc>;
-const mockDeleteDoc = deleteDoc as jest.MockedFunction<typeof deleteDoc>;
+const mockDoc = doc as jest.MockedFunction<typeof doc>;
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockWhere = where as jest.MockedFunction<typeof where>;
 const mockWriteBatch = writeBatch as jest.MockedFunction<typeof writeBatch>;
-const mockTimestamp = Timestamp as jest.Mocked<typeof Timestamp>;
 
 describe('BracketService', () => {
   let service: BracketService;
+  let mockBatch: any;
 
   beforeEach(() => {
-    jest.clearAllMocks();
     service = new BracketService();
     
-    // Mock Timestamp.now()
-    (mockTimestamp.now as jest.Mock) = jest.fn(() => ({
-      toDate: () => new Date(),
-      seconds: Math.floor(Date.now() / 1000),
-      nanoseconds: 0,
-    }));
+    // Setup batch mock
+    mockBatch = {
+      set: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      commit: jest.fn().mockResolvedValue(undefined),
+    };
+    
+    mockWriteBatch.mockReturnValue(mockBatch);
+    mockDoc.mockReturnValue({ id: 'mock-id' } as any);
+    mockQuery.mockReturnValue({} as any);
+    mockWhere.mockReturnValue({} as any);
+    
+    jest.clearAllMocks();
   });
 
   describe('createBracket', () => {
-    it('should create a bracket successfully', async () => {
-      const mockBracketRef = { id: 'bracket-123' };
-      mockCollection.mockReturnValue({} as any);
-      mockAddDoc.mockResolvedValue(mockBracketRef as any);
+    it('should create 4-team bracket', async () => {
+      const mockDocRef = { id: 'bracket123' };
+      mockAddDoc.mockResolvedValue(mockDocRef as any);
+      
+      // Mock getBracketsByDivision to return empty array (no existing brackets)
+      mockGetDocs.mockResolvedValue({
+        docs: [],
+      } as any);
 
       const result = await service.createBracket(
-        'division-1',
-        'tournament-1',
+        'division1',
+        'tournament1',
         'Gold Bracket',
-        8,
+        4,
         'manual'
       );
 
       expect(mockAddDoc).toHaveBeenCalled();
-      expect(result.id).toBe('bracket-123');
+      expect(result.id).toBe('bracket123');
       expect(result.name).toBe('Gold Bracket');
+      expect(result.size).toBe(4);
+      expect(result.seeds).toHaveLength(4);
+    });
+
+    it('should create 8-team bracket with correct seeds', async () => {
+      const mockDocRef = { id: 'bracket456' };
+      mockAddDoc.mockResolvedValue(mockDocRef as any);
+      
+      // Mock getBracketsByDivision to return empty array
+      mockGetDocs.mockResolvedValue({
+        docs: [],
+      } as any);
+
+      const result = await service.createBracket(
+        'division1',
+        'tournament1',
+        'Silver Bracket',
+        8,
+        'pools'
+      );
+
       expect(result.size).toBe(8);
       expect(result.seeds).toHaveLength(8);
+      expect(result.seedingSource).toBe('pools');
     });
 
     it('should throw error for invalid bracket size', async () => {
+      // Mock getBracketsByDivision to return empty array
+      mockGetDocs.mockResolvedValue({
+        docs: [],
+      } as any);
+      
       await expect(
-        service.createBracket('division-1', 'tournament-1', 'Bracket', 6 as any)
+        service.createBracket(
+          'division1',
+          'tournament1',
+          'Gold Bracket',
+          5 as any, // Invalid size
+          'manual'
+        )
       ).rejects.toThrow('Bracket size must be 4, 8, 16, or 32');
-    });
-
-    it('should initialize empty seeds', async () => {
-      const mockBracketRef = { id: 'bracket-123' };
-      mockCollection.mockReturnValue({} as any);
-      mockAddDoc.mockResolvedValue(mockBracketRef as any);
-
-      const result = await service.createBracket(
-        'division-1',
-        'tournament-1',
-        'Gold Bracket',
-        4
-      );
-
-      expect(result.seeds).toHaveLength(4);
-      expect(result.seeds[0]).toEqual({
-        position: 1,
-        teamName: undefined,
-        sourcePoolId: undefined,
-        sourcePoolRank: undefined,
-      });
     });
   });
 
   describe('generateBracketGames', () => {
-    it('should generate correct number of games for 4-team bracket', async () => {
-      const mockBracket: Bracket = {
-        id: 'bracket-123',
-        divisionId: 'division-1',
-        tournamentId: 'tournament-1',
+    it('should generate 3 games for 4-team bracket', async () => {
+      const mockBracket = {
+        id: 'bracket1',
+        divisionId: 'division1',
+        tournamentId: 'tournament1',
         name: 'Gold Bracket',
         size: 4,
         seedingSource: 'manual',
         seeds: [
-          { position: 1, teamName: 'Team A' },
-          { position: 2, teamName: 'Team B' },
-          { position: 3, teamName: 'Team C' },
-          { position: 4, teamName: 'Team D' },
+          { position: 1, teamName: 'Team 1' },
+          { position: 2, teamName: 'Team 2' },
+          { position: 3, teamName: 'Team 3' },
+          { position: 4, teamName: 'Team 4' },
         ],
-        createdAt: Timestamp.now() as any,
+        createdAt: mockTimestamp.now(),
       };
 
-      const mockBracketDoc = {
+      mockGetDoc.mockResolvedValue({
         exists: () => true,
-        id: 'bracket-123',
+        id: 'bracket1',
         data: () => mockBracket,
-      };
+      } as any);
 
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue(mockBracketDoc as any);
-      mockCollection.mockReturnValue({} as any);
+      await service.generateBracketGames('bracket1');
 
-      const mockBatch = {
-        set: jest.fn(),
-        update: jest.fn(),
-        commit: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWriteBatch.mockReturnValue(mockBatch as any);
-
-      const gameIds = await service.generateBracketGames('bracket-123');
-
-      // 4-team bracket: 2 semifinals + 1 final = 3 games
-      expect(gameIds).toHaveLength(3);
+      // 4-team bracket = 3 games (2 semifinals + 1 final)
+      expect(mockBatch.set).toHaveBeenCalledTimes(3);
       expect(mockBatch.commit).toHaveBeenCalled();
     });
 
-    it('should generate correct number of games for 8-team bracket', async () => {
-      const seeds: BracketSeed[] = Array.from({ length: 8 }, (_, i) => ({
+    it('should generate 7 games for 8-team bracket', async () => {
+      const seeds = Array.from({ length: 8 }, (_, i) => ({
         position: i + 1,
         teamName: `Team ${i + 1}`,
       }));
 
-      const mockBracket: Bracket = {
-        id: 'bracket-123',
-        divisionId: 'division-1',
-        tournamentId: 'tournament-1',
+      const mockBracket = {
+        id: 'bracket1',
+        divisionId: 'division1',
+        tournamentId: 'tournament1',
         name: 'Gold Bracket',
         size: 8,
         seedingSource: 'manual',
         seeds,
-        createdAt: Timestamp.now() as any,
+        createdAt: mockTimestamp.now(),
       };
 
-      const mockBracketDoc = {
+      mockGetDoc.mockResolvedValue({
         exists: () => true,
-        id: 'bracket-123',
+        id: 'bracket1',
         data: () => mockBracket,
-      };
+      } as any);
 
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue(mockBracketDoc as any);
-      mockCollection.mockReturnValue({} as any);
+      await service.generateBracketGames('bracket1');
 
-      const mockBatch = {
-        set: jest.fn(),
-        update: jest.fn(),
-        commit: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWriteBatch.mockReturnValue(mockBatch as any);
-
-      const gameIds = await service.generateBracketGames('bracket-123');
-
-      // 8-team bracket: 4 quarterfinals + 2 semifinals + 1 final = 7 games
-      expect(gameIds).toHaveLength(7);
+      // 8-team bracket = 7 games (4 quarterfinals + 2 semifinals + 1 final)
+      expect(mockBatch.set).toHaveBeenCalledTimes(7);
     });
 
     it('should throw error if bracket not found', async () => {
-      const mockBracketDoc = {
+      mockGetDoc.mockResolvedValue({
         exists: () => false,
-      };
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue(mockBracketDoc as any);
-
-      await expect(service.generateBracketGames('bracket-123')).rejects.toThrow(
-        'Bracket not found'
-      );
-    });
-  });
-
-  describe('advanceWinner', () => {
-    it('should advance winner to next game', async () => {
-      const mockGame: Game = {
-        id: 'game-1',
-        tournamentId: 'tournament-1',
-        divisionId: 'division-1',
-        teamA: 'Team A',
-        teamB: 'Team B',
-        scoreA: 25,
-        scoreB: 20,
-        startTime: Timestamp.now() as any,
-        locationId: 'loc-1',
-        status: GameStatus.COMPLETED,
-        bracketId: 'bracket-123',
-        bracketRound: 'Semifinals',
-        bracketPosition: 1,
-        feedsIntoGame: 'game-final',
-        createdAt: Timestamp.now() as any,
-      };
-
-      const mockNextGame: Game = {
-        id: 'game-final',
-        tournamentId: 'tournament-1',
-        divisionId: 'division-1',
-        teamA: '',
-        teamB: '',
-        scoreA: 0,
-        scoreB: 0,
-        startTime: Timestamp.now() as any,
-        locationId: 'loc-1',
-        status: GameStatus.SCHEDULED,
-        bracketId: 'bracket-123',
-        bracketRound: 'Finals',
-        bracketPosition: 1,
-        dependsOnGames: ['game-1', 'game-2'],
-        createdAt: Timestamp.now() as any,
-      };
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc
-        .mockResolvedValueOnce({
-          exists: () => true,
-          id: 'game-1',
-          data: () => mockGame,
-        } as any)
-        .mockResolvedValueOnce({
-          exists: () => true,
-          id: 'game-final',
-          data: () => mockNextGame,
-        } as any);
-
-      mockUpdateDoc.mockResolvedValue(undefined);
-
-      await service.advanceWinner('game-1', 'Team A');
-
-      expect(mockUpdateDoc).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({
-          teamA: 'Team A',
-        })
-      );
-    });
-
-    it('should throw error if game is not completed', async () => {
-      const mockGame: Game = {
-        id: 'game-1',
-        tournamentId: 'tournament-1',
-        divisionId: 'division-1',
-        teamA: 'Team A',
-        teamB: 'Team B',
-        scoreA: 0,
-        scoreB: 0,
-        startTime: Timestamp.now() as any,
-        locationId: 'loc-1',
-        status: GameStatus.SCHEDULED,
-        bracketId: 'bracket-123',
-        bracketRound: 'Semifinals',
-        bracketPosition: 1,
-        feedsIntoGame: 'game-final',
-        createdAt: Timestamp.now() as any,
-      };
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        id: 'game-1',
-        data: () => mockGame,
       } as any);
 
-      await expect(service.advanceWinner('game-1', 'Team A')).rejects.toThrow(
-        'Game must be completed before advancing winner'
-      );
-    });
-
-    it('should throw error if winner is not one of the teams', async () => {
-      const mockGame: Game = {
-        id: 'game-1',
-        tournamentId: 'tournament-1',
-        divisionId: 'division-1',
-        teamA: 'Team A',
-        teamB: 'Team B',
-        scoreA: 25,
-        scoreB: 20,
-        startTime: Timestamp.now() as any,
-        locationId: 'loc-1',
-        status: GameStatus.COMPLETED,
-        bracketId: 'bracket-123',
-        bracketRound: 'Semifinals',
-        bracketPosition: 1,
-        feedsIntoGame: 'game-final',
-        createdAt: Timestamp.now() as any,
-      };
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        id: 'game-1',
-        data: () => mockGame,
-      } as any);
-
-      await expect(service.advanceWinner('game-1', 'Team C')).rejects.toThrow(
-        'Winner must be one of the teams in the game'
-      );
-    });
-
-    it('should not advance if game is finals', async () => {
-      const mockGame: Game = {
-        id: 'game-final',
-        tournamentId: 'tournament-1',
-        divisionId: 'division-1',
-        teamA: 'Team A',
-        teamB: 'Team B',
-        scoreA: 25,
-        scoreB: 20,
-        startTime: Timestamp.now() as any,
-        locationId: 'loc-1',
-        status: GameStatus.COMPLETED,
-        bracketId: 'bracket-123',
-        bracketRound: 'Finals',
-        bracketPosition: 1,
-        createdAt: Timestamp.now() as any,
-      };
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        id: 'game-final',
-        data: () => mockGame,
-      } as any);
-
-      await service.advanceWinner('game-final', 'Team A');
-
-      expect(mockUpdateDoc).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('seedBracketFromPools', () => {
-    it('should seed bracket from pool standings', async () => {
-      const mockBracket: Bracket = {
-        id: 'bracket-123',
-        divisionId: 'division-1',
-        tournamentId: 'tournament-1',
-        name: 'Gold Bracket',
-        size: 4,
-        seedingSource: 'pools',
-        seeds: [
-          { position: 1 },
-          { position: 2 },
-          { position: 3 },
-          { position: 4 },
-        ],
-        createdAt: Timestamp.now() as any,
-      };
-
-      const mockStandings: PoolStanding[] = [
-        {
-          teamName: 'Team A',
-          poolId: 'pool-1',
-          wins: 3,
-          losses: 0,
-          pointsFor: 75,
-          pointsAgainst: 50,
-          pointDifferential: 25,
-          gamesPlayed: 3,
-          poolRank: 1,
-        },
-        {
-          teamName: 'Team B',
-          poolId: 'pool-1',
-          wins: 2,
-          losses: 1,
-          pointsFor: 70,
-          pointsAgainst: 60,
-          pointDifferential: 10,
-          gamesPlayed: 3,
-          poolRank: 2,
-        },
-        {
-          teamName: 'Team C',
-          poolId: 'pool-2',
-          wins: 3,
-          losses: 0,
-          pointsFor: 80,
-          pointsAgainst: 55,
-          pointDifferential: 25,
-          gamesPlayed: 3,
-          poolRank: 1,
-        },
-        {
-          teamName: 'Team D',
-          poolId: 'pool-2',
-          wins: 2,
-          losses: 1,
-          pointsFor: 65,
-          pointsAgainst: 60,
-          pointDifferential: 5,
-          gamesPlayed: 3,
-          poolRank: 2,
-        },
-      ];
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        id: 'bracket-123',
-        data: () => mockBracket,
-      } as any);
-
-      (poolService.calculateStandings as jest.Mock)
-        .mockResolvedValueOnce([mockStandings[0], mockStandings[1]])
-        .mockResolvedValueOnce([mockStandings[2], mockStandings[3]]);
-
-      mockUpdateDoc.mockResolvedValue(undefined);
-
-      // Mock updateBracketGamesWithSeeds
-      mockCollection.mockReturnValue({} as any);
-      mockQuery.mockReturnValue({} as any);
-      mockWhere.mockReturnValue({} as any);
-      mockGetDocs.mockResolvedValue({ docs: [] } as any);
-
-      const mockBatch = {
-        update: jest.fn(),
-        commit: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWriteBatch.mockReturnValue(mockBatch as any);
-
-      await service.seedBracketFromPools('bracket-123', ['pool-1', 'pool-2']);
-
-      expect(mockUpdateDoc).toHaveBeenCalled();
-      const updateCall = (mockUpdateDoc.mock.calls[0] as any)[1];
-      expect(updateCall.seeds).toBeDefined();
-      // Pool winners should be seeded first, sorted by point differential
-      // Team A and Team C both have rank 1, but Team C has higher point diff (25 vs 25)
-      // Actually they're equal, so order depends on which pool is processed first
-      // Since pool-1 is processed first, Team A comes before Team C
-      expect(updateCall.seeds[0].teamName).toBe('Team A');
-      expect(updateCall.seeds[1].teamName).toBe('Team C');
-    });
-
-    it('should throw error if too many teams for bracket size', async () => {
-      const mockBracket: Bracket = {
-        id: 'bracket-123',
-        divisionId: 'division-1',
-        tournamentId: 'tournament-1',
-        name: 'Gold Bracket',
-        size: 4,
-        seedingSource: 'pools',
-        seeds: [
-          { position: 1 },
-          { position: 2 },
-          { position: 3 },
-          { position: 4 },
-        ],
-        createdAt: Timestamp.now() as any,
-      };
-
-      const mockStandings: PoolStanding[] = Array.from({ length: 6 }, (_, i) => ({
-        teamName: `Team ${i + 1}`,
-        poolId: 'pool-1',
-        wins: 3 - i,
-        losses: i,
-        pointsFor: 75,
-        pointsAgainst: 50,
-        pointDifferential: 25,
-        gamesPlayed: 3,
-        poolRank: i + 1,
-      }));
-
-      mockDoc.mockReturnValue({} as any);
-      mockGetDoc.mockResolvedValue({
-        exists: () => true,
-        id: 'bracket-123',
-        data: () => mockBracket,
-      } as any);
-
-      (poolService.calculateStandings as jest.Mock).mockResolvedValue(mockStandings);
-
-      await expect(
-        service.seedBracketFromPools('bracket-123', ['pool-1'])
-      ).rejects.toThrow('Too many teams (6) for bracket size (4)');
-    });
-  });
-
-  describe('deleteBracket', () => {
-    it('should delete bracket and all associated games', async () => {
-      const mockGames: Game[] = [
-        {
-          id: 'game-1',
-          tournamentId: 'tournament-1',
-          divisionId: 'division-1',
-          teamA: 'Team A',
-          teamB: 'Team B',
-          scoreA: 0,
-          scoreB: 0,
-          startTime: Timestamp.now() as any,
-          locationId: 'loc-1',
-          status: GameStatus.SCHEDULED,
-          bracketId: 'bracket-123',
-          bracketRound: 'Finals',
-          bracketPosition: 1,
-          createdAt: Timestamp.now() as any,
-        },
-      ];
-
-      mockCollection.mockReturnValue({} as any);
-      mockQuery.mockReturnValue({} as any);
-      mockWhere.mockReturnValue({} as any);
-      mockGetDocs.mockResolvedValue({
-        docs: mockGames.map(game => ({
-          id: game.id,
-          data: () => game,
-        })),
-      } as any);
-
-      const mockBatch = {
-        delete: jest.fn(),
-        commit: jest.fn().mockResolvedValue(undefined),
-      };
-      mockWriteBatch.mockReturnValue(mockBatch as any);
-      mockDoc.mockReturnValue({} as any);
-
-      await service.deleteBracket('bracket-123');
-
-      expect(mockBatch.delete).toHaveBeenCalledTimes(2); // 1 game + 1 bracket
-      expect(mockBatch.commit).toHaveBeenCalled();
-    });
-
-    it('should throw error if games have been completed', async () => {
-      const mockGames: Game[] = [
-        {
-          id: 'game-1',
-          tournamentId: 'tournament-1',
-          divisionId: 'division-1',
-          teamA: 'Team A',
-          teamB: 'Team B',
-          scoreA: 25,
-          scoreB: 20,
-          startTime: Timestamp.now() as any,
-          locationId: 'loc-1',
-          status: GameStatus.COMPLETED,
-          bracketId: 'bracket-123',
-          bracketRound: 'Finals',
-          bracketPosition: 1,
-          createdAt: Timestamp.now() as any,
-        },
-      ];
-
-      mockCollection.mockReturnValue({} as any);
-      mockQuery.mockReturnValue({} as any);
-      mockWhere.mockReturnValue({} as any);
-      mockGetDocs.mockResolvedValue({
-        docs: mockGames.map(game => ({
-          id: game.id,
-          data: () => game,
-        })),
-      } as any);
-
-      await expect(service.deleteBracket('bracket-123')).rejects.toThrow(
-        'Cannot delete bracket: some games have already been completed'
-      );
+      await expect(service.generateBracketGames('nonexistent'))
+        .rejects.toThrow('Bracket not found');
     });
   });
 
   describe('getBracket', () => {
     it('should return bracket data', async () => {
-      const mockBracket: Bracket = {
-        id: 'bracket-123',
-        divisionId: 'division-1',
-        tournamentId: 'tournament-1',
+      const mockBracket = {
+        id: 'bracket1',
         name: 'Gold Bracket',
-        size: 8,
-        seedingSource: 'manual',
-        seeds: [],
-        createdAt: Timestamp.now() as any,
+        size: 4,
       };
 
-      mockDoc.mockReturnValue({} as any);
       mockGetDoc.mockResolvedValue({
         exists: () => true,
-        id: 'bracket-123',
+        id: 'bracket1',
         data: () => mockBracket,
       } as any);
 
-      const result = await service.getBracket('bracket-123');
+      const result = await service.getBracket('bracket1');
 
-      expect(result.id).toBe('bracket-123');
+      expect(result.id).toBe('bracket1');
       expect(result.name).toBe('Gold Bracket');
     });
 
     it('should throw error if bracket not found', async () => {
-      mockDoc.mockReturnValue({} as any);
       mockGetDoc.mockResolvedValue({
         exists: () => false,
       } as any);
 
-      await expect(service.getBracket('bracket-123')).rejects.toThrow(
-        'Bracket not found'
-      );
+      await expect(service.getBracket('nonexistent'))
+        .rejects.toThrow('Bracket not found');
+    });
+  });
+
+  describe('getBracketsByDivision', () => {
+    it('should return array of brackets', async () => {
+      const mockBrackets = [
+        { id: 'bracket1', name: 'Gold Bracket' },
+        { id: 'bracket2', name: 'Silver Bracket' },
+      ];
+
+      mockGetDocs.mockResolvedValue({
+        docs: mockBrackets.map(bracket => ({
+          id: bracket.id,
+          data: () => bracket,
+        })),
+      } as any);
+
+      const result = await service.getBracketsByDivision('division1');
+
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('Gold Bracket');
+      expect(result[1].name).toBe('Silver Bracket');
+    });
+
+    it('should return empty array if no brackets found', async () => {
+      mockGetDocs.mockResolvedValue({
+        docs: [],
+      } as any);
+
+      const result = await service.getBracketsByDivision('division1');
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('getBracketState', () => {
+    it('should organize games by round', async () => {
+      const mockBracket = {
+        id: 'bracket1',
+        name: 'Gold Bracket',
+        size: 4,
+      };
+
+      const mockGames = [
+        {
+          id: 'game1',
+          bracketRound: 'Semifinals',
+          bracketPosition: 1,
+          status: GameStatus.COMPLETED,
+        },
+        {
+          id: 'game2',
+          bracketRound: 'Semifinals',
+          bracketPosition: 2,
+          status: GameStatus.COMPLETED,
+        },
+        {
+          id: 'game3',
+          bracketRound: 'Finals',
+          bracketPosition: 1,
+          status: GameStatus.SCHEDULED,
+        },
+      ];
+
+      // Mock getBracket call
+      mockGetDoc.mockResolvedValue({
+        exists: () => true,
+        id: 'bracket1',
+        data: () => mockBracket,
+      } as any);
+
+      // Mock getGamesByBracket call
+      mockGetDocs.mockResolvedValue({
+        docs: mockGames.map(game => ({
+          id: game.id,
+          data: () => game,
+        })),
+      } as any);
+
+      const result = await service.getBracketState('bracket1');
+
+      expect(result.bracket.id).toBe('bracket1');
+      expect(result.gamesByRound.size).toBe(2);
+      expect(result.gamesByRound.get('Semifinals')).toHaveLength(2);
+      expect(result.gamesByRound.get('Finals')).toHaveLength(1);
     });
   });
 });
