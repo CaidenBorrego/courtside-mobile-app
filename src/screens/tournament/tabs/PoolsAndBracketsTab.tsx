@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text, Card, Divider, DataTable } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { poolService } from '../../../services/tournament/PoolService';
-import { bracketService } from '../../../services/tournament/BracketService';
-import { firebaseService } from '../../../services/firebase';
 import { Pool, Bracket, PoolStanding, Game, Division, RootStackParamList } from '../../../types';
+import { useTournament } from '../../../contexts/TournamentContext';
+import { tournamentDataCache } from '../../../services/cache/TournamentDataCache';
+import DivisionSelector from '../../../components/tournament/DivisionSelector';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -17,69 +17,35 @@ interface PoolsAndBracketsTabProps {
 
 const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId }) => {
   const navigation = useNavigation<NavigationProp>();
-  const [divisions, setDivisions] = useState<Division[]>([]);
+  const { selectedDivisionId, setSelectedDivisionId, divisions, divisionsLoading } = useTournament();
   const [poolsByDivision, setPoolsByDivision] = useState<Map<string, Pool[]>>(new Map());
   const [bracketsByDivision, setBracketsByDivision] = useState<Map<string, Bracket[]>>(new Map());
   const [poolStandings, setPoolStandings] = useState<Map<string, PoolStanding[]>>(new Map());
   const [bracketGames, setBracketGames] = useState<Map<string, Map<string, Game[]>>>(new Map());
-  const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
   const [expandedPools, setExpandedPools] = useState<Set<string>>(new Set());
   const [expandedBrackets, setExpandedBrackets] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dataLoadedRef = useRef(false);
 
-  useEffect(() => {
-    loadPoolsAndBrackets();
-  }, [tournamentId]);
-
-  // Auto-expand if there's only one division
-  useEffect(() => {
-    if (divisions.length === 1) {
-      setExpandedDivisions(new Set([divisions[0].id]));
+  const loadPoolsAndBrackets = useCallback(async () => {
+    if (dataLoadedRef.current || divisions.length === 0) {
+      return;
     }
-  }, [divisions]);
 
-  const loadPoolsAndBrackets = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load divisions
-      const divisionsData = await firebaseService.getDivisionsByTournament(tournamentId);
-      setDivisions(divisionsData);
+      const { pools, brackets, poolStandings: standings, bracketGames: games } = 
+        await tournamentDataCache.getPoolsAndBrackets(tournamentId, divisions);
 
-      // Load pools and brackets for each division
-      const poolsMap = new Map<string, Pool[]>();
-      const bracketsMap = new Map<string, Bracket[]>();
-      const standingsMap = new Map<string, PoolStanding[]>();
-      const gamesMap = new Map<string, Map<string, Game[]>>();
-
-      for (const division of divisionsData) {
-        // Load pools
-        const poolsData = await poolService.getPoolsByDivision(division.id);
-        poolsMap.set(division.id, poolsData);
-
-        // Load brackets
-        const bracketsData = await bracketService.getBracketsByDivision(division.id);
-        bracketsMap.set(division.id, bracketsData);
-
-        // Load standings for each pool
-        for (const pool of poolsData) {
-          const standings = await poolService.calculateStandings(pool.id);
-          standingsMap.set(pool.id, standings);
-        }
-
-        // Load games for each bracket organized by round
-        for (const bracket of bracketsData) {
-          const bracketState = await bracketService.getBracketState(bracket.id);
-          gamesMap.set(bracket.id, bracketState.gamesByRound);
-        }
-      }
-
-      setPoolsByDivision(poolsMap);
-      setBracketsByDivision(bracketsMap);
-      setPoolStandings(standingsMap);
-      setBracketGames(gamesMap);
+      setPoolsByDivision(pools);
+      setBracketsByDivision(brackets);
+      setPoolStandings(standings);
+      setBracketGames(games);
+      dataLoadedRef.current = true;
 
     } catch (err) {
       console.error('Error loading pools and brackets:', err);
@@ -87,17 +53,25 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
     } finally {
       setLoading(false);
     }
-  };
+  }, [divisions, tournamentId]);
 
-  const toggleDivisionExpanded = (divisionId: string) => {
-    const newExpanded = new Set(expandedDivisions);
-    if (newExpanded.has(divisionId)) {
-      newExpanded.delete(divisionId);
-    } else {
-      newExpanded.add(divisionId);
+  useEffect(() => {
+    loadPoolsAndBrackets();
+  }, [loadPoolsAndBrackets]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    dataLoadedRef.current = false;
+    tournamentDataCache.forceRefresh(tournamentId);
+    
+    try {
+      await loadPoolsAndBrackets();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
     }
-    setExpandedDivisions(newExpanded);
-  };
+  }, [tournamentId, loadPoolsAndBrackets]);
 
   const togglePoolExpanded = (poolId: string) => {
     const newExpanded = new Set(expandedPools);
@@ -128,15 +102,21 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
     const standings = poolStandings.get(pool.id) || [];
 
     return (
-      <Card key={pool.id} style={styles.card} mode="elevated">
+      <Card key={pool.id} style={styles.card}>
         <TouchableOpacity onPress={() => togglePoolExpanded(pool.id)} activeOpacity={0.7}>
-          <Card.Content>
+          <Card.Content style={styles.cardContent}>
             <View style={styles.cardHeader}>
               <View style={styles.headerLeft}>
-                <Ionicons name="trophy" size={20} color="#000000" />
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  {pool.name}
-                </Text>
+                <Ionicons name="trophy" size={22} color="#000000" style={styles.headerIcon} />
+                <View style={styles.headerTextContainer}>
+                  <Text variant="titleMedium" style={styles.cardTitle}>
+                    {pool.name}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.cardSubtitle}>
+                    {pool.teams.length} teams
+                    {pool.advancementCount && ` • Top ${pool.advancementCount} advance`}
+                  </Text>
+                </View>
               </View>
               <Ionicons 
                 name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -144,63 +124,63 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
                 color="#6B7280" 
               />
             </View>
-            <Text variant="bodySmall" style={styles.cardSubtitle}>
-              {pool.teams.length} teams
-              {pool.advancementCount && ` • Top ${pool.advancementCount} advance`}
-            </Text>
           </Card.Content>
         </TouchableOpacity>
 
         {isExpanded && (
-          <Card.Content style={styles.expandedContent}>
-            <Divider style={styles.divider} />
-            <Text variant="titleSmall" style={styles.sectionTitle}>
-              Standings
-            </Text>
-            {standings.length === 0 ? (
-              <Text variant="bodySmall" style={styles.emptyText}>
-                No games completed yet
+          <View>
+            <Divider />
+            <Card.Content style={styles.expandedContent}>
+              <Text variant="titleSmall" style={styles.sectionTitle}>
+                Standings
               </Text>
-            ) : (
-              <DataTable>
-                <DataTable.Header>
-                  <DataTable.Title style={styles.rankColumn}>Rank</DataTable.Title>
-                  <DataTable.Title style={styles.teamColumn}>Team</DataTable.Title>
-                  <DataTable.Title numeric style={styles.statColumn}>W-L</DataTable.Title>
-                  <DataTable.Title numeric style={styles.statColumn}>Diff</DataTable.Title>
-                </DataTable.Header>
+              {standings.length === 0 ? (
+                <Text variant="bodySmall" style={styles.emptyText}>
+                  No games completed yet
+                </Text>
+              ) : (
+                <View style={styles.tableContainer}>
+                  <DataTable>
+                    <DataTable.Header>
+                      <DataTable.Title style={styles.rankColumn}>Rank</DataTable.Title>
+                      <DataTable.Title style={styles.teamColumn}>Team</DataTable.Title>
+                      <DataTable.Title numeric style={styles.statColumn}>W-L</DataTable.Title>
+                      <DataTable.Title numeric style={styles.statColumn}>Diff</DataTable.Title>
+                    </DataTable.Header>
 
-                {standings.map((standing) => (
-                  <DataTable.Row key={standing.teamName}>
-                    <DataTable.Cell style={styles.rankColumn}>
-                      {standing.poolRank}
-                    </DataTable.Cell>
-                    <DataTable.Cell style={styles.teamColumn}>
-                      <TouchableOpacity 
-                        onPress={() => handleTeamPress(standing.teamName, divisionId)}
-                        activeOpacity={0.7}
-                      >
-                        <Text 
-                          variant="bodyMedium" 
-                          style={styles.teamNameTappable}
-                          numberOfLines={1}
-                        >
-                          {standing.teamName}
-                        </Text>
-                      </TouchableOpacity>
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.statColumn}>
-                      {standing.wins}-{standing.losses}
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.statColumn}>
-                      {standing.pointDifferential > 0 ? '+' : ''}
-                      {standing.pointDifferential}
-                    </DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-              </DataTable>
-            )}
-          </Card.Content>
+                    {standings.map((standing) => (
+                      <DataTable.Row key={standing.teamName}>
+                        <DataTable.Cell style={styles.rankColumn}>
+                          <Text style={styles.rankText}>{standing.poolRank}</Text>
+                        </DataTable.Cell>
+                        <DataTable.Cell style={styles.teamColumn}>
+                          <TouchableOpacity 
+                            onPress={() => handleTeamPress(standing.teamName, divisionId)}
+                            activeOpacity={0.7}
+                          >
+                            <Text 
+                              variant="bodyMedium" 
+                              style={styles.teamNameTappable}
+                              numberOfLines={1}
+                            >
+                              {standing.teamName}
+                            </Text>
+                          </TouchableOpacity>
+                        </DataTable.Cell>
+                        <DataTable.Cell numeric style={styles.statColumn}>
+                          {standing.wins}-{standing.losses}
+                        </DataTable.Cell>
+                        <DataTable.Cell numeric style={styles.statColumn}>
+                          {standing.pointDifferential > 0 ? '+' : ''}
+                          {standing.pointDifferential}
+                        </DataTable.Cell>
+                      </DataTable.Row>
+                    ))}
+                  </DataTable>
+                </View>
+              )}
+            </Card.Content>
+          </View>
         )}
       </Card>
     );
@@ -223,15 +203,20 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
     });
 
     return (
-      <Card key={bracket.id} style={styles.card} mode="elevated">
+      <Card key={bracket.id} style={styles.card}>
         <TouchableOpacity onPress={() => toggleBracketExpanded(bracket.id)} activeOpacity={0.7}>
-          <Card.Content>
+          <Card.Content style={styles.cardContent}>
             <View style={styles.cardHeader}>
               <View style={styles.headerLeft}>
-                <Ionicons name="git-branch" size={20} color="#000000" />
-                <Text variant="titleMedium" style={styles.cardTitle}>
-                  {bracket.name}
-                </Text>
+                <Ionicons name="git-branch" size={22} color="#000000" style={styles.headerIcon} />
+                <View style={styles.headerTextContainer}>
+                  <Text variant="titleMedium" style={styles.cardTitle}>
+                    {bracket.name}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.cardSubtitle}>
+                    {bracket.size}-team bracket • {bracket.seedingSource}
+                  </Text>
+                </View>
               </View>
               <Ionicons 
                 name={isExpanded ? 'chevron-up' : 'chevron-down'} 
@@ -239,72 +224,71 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
                 color="#6B7280" 
               />
             </View>
-            <Text variant="bodySmall" style={styles.cardSubtitle}>
-              {bracket.size}-team bracket • {bracket.seedingSource}
-            </Text>
           </Card.Content>
         </TouchableOpacity>
 
         {isExpanded && (
-          <Card.Content style={styles.expandedContent}>
-            <Divider style={styles.divider} />
-            {rounds.length === 0 ? (
-              <Text variant="bodySmall" style={styles.emptyText}>
-                No games generated yet
-              </Text>
-            ) : (
-              rounds.map((round) => {
-                const games = gamesByRound.get(round) || [];
-                return (
-                  <View key={round} style={styles.roundSection}>
-                    <Text variant="titleSmall" style={styles.roundTitle}>
-                      {round}
-                    </Text>
-                    {games.map((game: Game, index: number) => (
-                      <View key={game.id} style={styles.matchupCard}>
-                        <View style={styles.matchupRow}>
-                          <Text 
-                            variant="bodyMedium" 
-                            style={[
-                              styles.matchupTeam,
-                              !game.teamA && styles.tbdText
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {game.teamA || 'TBD'}
-                          </Text>
-                          <Text variant="bodyMedium" style={styles.matchupScore}>
-                            {game.scoreA}
-                          </Text>
+          <View>
+            <Divider />
+            <Card.Content style={styles.expandedContent}>
+              {rounds.length === 0 ? (
+                <Text variant="bodySmall" style={styles.emptyText}>
+                  No games generated yet
+                </Text>
+              ) : (
+                rounds.map((round) => {
+                  const games = gamesByRound.get(round) || [];
+                  return (
+                    <View key={round} style={styles.roundSection}>
+                      <Text variant="titleSmall" style={styles.roundTitle}>
+                        {round}
+                      </Text>
+                      {games.map((game: Game, index: number) => (
+                        <View key={game.id} style={styles.matchupCard}>
+                          <View style={styles.matchupRow}>
+                            <Text 
+                              variant="bodyMedium" 
+                              style={[
+                                styles.matchupTeam,
+                                !game.teamA && styles.tbdText
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {game.teamA || 'TBD'}
+                            </Text>
+                            <Text variant="bodyMedium" style={styles.matchupScore}>
+                              {game.scoreA !== undefined ? game.scoreA : '-'}
+                            </Text>
+                          </View>
+                          <View style={styles.matchupRow}>
+                            <Text 
+                              variant="bodyMedium" 
+                              style={[
+                                styles.matchupTeam,
+                                !game.teamB && styles.tbdText
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {game.teamB || 'TBD'}
+                            </Text>
+                            <Text variant="bodyMedium" style={styles.matchupScore}>
+                              {game.scoreB !== undefined ? game.scoreB : '-'}
+                            </Text>
+                          </View>
                         </View>
-                        <View style={styles.matchupRow}>
-                          <Text 
-                            variant="bodyMedium" 
-                            style={[
-                              styles.matchupTeam,
-                              !game.teamB && styles.tbdText
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {game.teamB || 'TBD'}
-                          </Text>
-                          <Text variant="bodyMedium" style={styles.matchupScore}>
-                            {game.scoreB}
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                );
-              })
-            )}
-          </Card.Content>
+                      ))}
+                    </View>
+                  );
+                })
+              )}
+            </Card.Content>
+          </View>
         )}
       </Card>
     );
   };
 
-  if (loading) {
+  if (divisionsLoading || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#000000" />
@@ -347,100 +331,62 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
     );
   }
 
-  const divisionsWithContent = divisions.filter(division => {
-    const pools = poolsByDivision.get(division.id) || [];
-    const brackets = bracketsByDivision.get(division.id) || [];
-    return pools.length > 0 || brackets.length > 0;
-  });
+  // Get pools and brackets for selected division
+  const selectedPools = selectedDivisionId ? (poolsByDivision.get(selectedDivisionId) || []) : [];
+  const selectedBrackets = selectedDivisionId ? (bracketsByDivision.get(selectedDivisionId) || []) : [];
 
-  const showDivisionHeaders = divisionsWithContent.length > 1;
+  // Sort pools alphabetically by name
+  const sortedPools = [...selectedPools].sort((a, b) => a.name.localeCompare(b.name));
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {divisions.map(division => {
-        const pools = poolsByDivision.get(division.id) || [];
-        const brackets = bracketsByDivision.get(division.id) || [];
-        
-        // Skip divisions with no pools or brackets
-        if (pools.length === 0 && brackets.length === 0) {
-          return null;
+    <View style={styles.container}>
+      <DivisionSelector
+        divisions={divisions}
+        selectedDivisionId={selectedDivisionId}
+        onSelectDivision={setSelectedDivisionId}
+      />
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
         }
+      >
+        {sortedPools.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={styles.sectionHeader}>
+              Pools
+            </Text>
+            {sortedPools.map(pool => renderPoolCard(pool, selectedDivisionId!))}
+          </View>
+        )}
 
-        const isExpanded = expandedDivisions.has(division.id);
+        {selectedBrackets.length > 0 && (
+          <View style={styles.section}>
+            <Text variant="titleMedium" style={styles.sectionHeader}>
+              Brackets
+            </Text>
+            {selectedBrackets.map(renderBracketCard)}
+          </View>
+        )}
 
-        // If only one division, render content directly without card wrapper
-        if (!showDivisionHeaders) {
-          return (
-            <View key={division.id}>
-              {pools.length > 0 && (
-                <View style={styles.section}>
-                  <Text variant="titleMedium" style={styles.sectionHeader}>
-                    Pools
-                  </Text>
-                  {pools.map(pool => renderPoolCard(pool, division.id))}
-                </View>
-              )}
-
-              {brackets.length > 0 && (
-                <View style={styles.section}>
-                  <Text variant="titleMedium" style={styles.sectionHeader}>
-                    Brackets
-                  </Text>
-                  {brackets.map(renderBracketCard)}
-                </View>
-              )}
-            </View>
-          );
-        }
-
-        // Multiple divisions - show collapsible cards
-        return (
-          <Card key={division.id} style={styles.divisionCard} mode="elevated">
-            <TouchableOpacity onPress={() => toggleDivisionExpanded(division.id)} activeOpacity={0.7}>
-              <Card.Content>
-                <View style={styles.cardHeader}>
-                  <View style={styles.headerLeft}>
-                    <Text variant="titleLarge" style={styles.divisionTitle}>
-                      {division.name}
-                    </Text>
-                  </View>
-                  <Ionicons 
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                    size={24} 
-                    color="#6B7280" 
-                  />
-                </View>
-                <Text variant="bodySmall" style={styles.divisionSubtitle}>
-                  {pools.length} pool{pools.length !== 1 ? 's' : ''} • {brackets.length} bracket{brackets.length !== 1 ? 's' : ''}
-                </Text>
-              </Card.Content>
-            </TouchableOpacity>
-
-            {isExpanded && (
-              <Card.Content style={styles.expandedContent}>
-                {pools.length > 0 && (
-                  <View style={styles.section}>
-                    <Text variant="titleMedium" style={styles.sectionHeader}>
-                      Pools
-                    </Text>
-                    {pools.map(pool => renderPoolCard(pool, division.id))}
-                  </View>
-                )}
-
-                {brackets.length > 0 && (
-                  <View style={styles.section}>
-                    <Text variant="titleMedium" style={styles.sectionHeader}>
-                      Brackets
-                    </Text>
-                    {brackets.map(renderBracketCard)}
-                  </View>
-                )}
-              </Card.Content>
-            )}
-          </Card>
-        );
-      })}
-    </ScrollView>
+        {sortedPools.length === 0 && selectedBrackets.length === 0 && (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="trophy-outline" size={64} color="#D1D5DB" />
+            <Text variant="titleMedium" style={styles.emptyTitle}>
+              No Pools or Brackets
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptySubtitle}>
+              This division doesn&apos;t have any pools or brackets configured yet.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -505,56 +451,77 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
     marginBottom: 12,
     fontWeight: 'bold',
+    fontSize: 18,
   },
   card: {
     marginBottom: 12,
     elevation: 2,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cardContent: {
+    paddingVertical: 16,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flex: 1,
+  },
+  headerIcon: {
+    marginRight: 12,
+  },
+  headerTextContainer: {
     flex: 1,
   },
   cardTitle: {
     fontWeight: 'bold',
-    flex: 1,
+    marginBottom: 4,
   },
   cardSubtitle: {
     color: '#6B7280',
-    marginTop: 4,
   },
   expandedContent: {
-    paddingTop: 0,
+    paddingTop: 16,
   },
   divider: {
-    marginVertical: 12,
+    marginVertical: 0,
   },
   sectionTitle: {
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  tableContainer: {
+    marginBottom: 12,
   },
   emptyText: {
     color: '#6B7280',
     fontStyle: 'italic',
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   rankColumn: {
-    flex: 0.5,
+    flex: 0.45,
+    justifyContent: 'center',
+    marginLeft: -8,
+  },
+  rankText: {
+    textAlign: 'left',
   },
   teamColumn: {
     flex: 2,
+    marginLeft: 8,
   },
   statColumn: {
     flex: 0.75,
@@ -568,33 +535,38 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   roundSection: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   roundTitle: {
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
     color: '#000000',
+    fontSize: 15,
   },
   matchupCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    padding: 14,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   matchupRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 6,
   },
   matchupTeam: {
     flex: 1,
     fontWeight: '500',
+    fontSize: 15,
   },
   matchupScore: {
     fontWeight: 'bold',
-    minWidth: 30,
+    minWidth: 35,
     textAlign: 'right',
+    fontSize: 15,
   },
   tbdText: {
     color: '#9CA3AF',

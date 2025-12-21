@@ -79,6 +79,7 @@ const RootNavigator: React.FC = () => {
               options={{
                 headerShown: true,
                 title: 'Tournament Details',
+                headerBackTitle: 'Home',
                 headerStyle: {
                   backgroundColor: '#000000',
                 },

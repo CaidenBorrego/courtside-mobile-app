@@ -32,6 +32,7 @@ const ProfileScreen: React.FC = () => {
   const [followedGamesData, setFollowedGamesData] = useState<Game[]>([]);
   const [loadingGames, setLoadingGames] = useState(false);
   const [teamDivisions, setTeamDivisions] = useState<Record<string, string>>({});
+  const [teamDivisionIds, setTeamDivisionIds] = useState<Record<string, string>>({});
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,11 +60,55 @@ const ProfileScreen: React.FC = () => {
     }, []) // Empty deps - only run on focus/blur, not on every render
   );
 
-  // Load followed games data (no caching due to Firestore Timestamp serialization issues)
+  // Load followed games data with caching
   const loadFollowedGames = useCallback(async (forceRefresh: boolean = false) => {
     if (!user || !userProfile?.followingGames.length) {
       setFollowedGamesData([]);
       return;
+    }
+
+    const cacheKey = `followed_games_${user.uid}`;
+    
+    // Try to get cached data first if not forcing refresh
+    if (!forceRefresh) {
+      const cached = await getCachedData<any[]>(cacheKey);
+      if (cached) {
+        // Reconstruct Timestamp objects from cached data
+        const gamesWithTimestamps = cached.map(game => {
+          // Validate and reconstruct startTime
+          let startTime = game.startTime;
+          if (typeof game.startTime === 'string') {
+            const date = new Date(game.startTime);
+            if (!isNaN(date.getTime())) {
+              startTime = { 
+                toMillis: () => date.getTime(),
+                toDate: () => date
+              };
+            }
+          }
+          
+          // Validate and reconstruct updatedAt
+          let updatedAt = game.updatedAt;
+          if (typeof game.updatedAt === 'string') {
+            const date = new Date(game.updatedAt);
+            if (!isNaN(date.getTime())) {
+              updatedAt = {
+                toMillis: () => date.getTime(),
+                toDate: () => date
+              };
+            }
+          }
+          
+          return {
+            ...game,
+            startTime,
+            updatedAt,
+          };
+        });
+        setFollowedGamesData(gamesWithTimestamps as Game[]);
+        setLoadingGames(false);
+        return;
+      }
     }
 
     setLoadingGames(true);
@@ -110,6 +155,16 @@ const ProfileScreen: React.FC = () => {
       });
       
       setFollowedGamesData(sortedGames);
+      
+      // Convert Timestamps to ISO strings for caching
+      const serializableGames = sortedGames.map(game => ({
+        ...game,
+        startTime: game.startTime?.toDate ? game.startTime.toDate().toISOString() : game.startTime,
+        updatedAt: game.updatedAt?.toDate ? game.updatedAt.toDate().toISOString() : game.updatedAt,
+      }));
+      
+      // Cache the results for 15 minutes
+      await cacheData(cacheKey, serializableGames, { expiryMinutes: 15 });
     } catch (error) {
       console.error('Error loading followed games:', error);
     } finally {
@@ -125,6 +180,7 @@ const ProfileScreen: React.FC = () => {
   const loadTeamDivisions = useCallback(async (forceRefresh: boolean = false) => {
     if (!user || !userProfile?.followingTeams.length) {
       setTeamDivisions({});
+      setTeamDivisionIds({});
       return;
     }
 
@@ -132,9 +188,10 @@ const ProfileScreen: React.FC = () => {
     
     // Try to get cached data first if not forcing refresh
     if (!forceRefresh) {
-      const cached = await getCachedData<Record<string, string>>(cacheKey);
-      if (cached) {
-        setTeamDivisions(cached);
+      const cached = await getCachedData<{ divisions: Record<string, string>; divisionIds: Record<string, string> }>(cacheKey);
+      if (cached && cached.divisions && cached.divisionIds) {
+        setTeamDivisions(cached.divisions);
+        setTeamDivisionIds(cached.divisionIds);
         setLoadingTeams(false);
         return;
       }
@@ -143,6 +200,7 @@ const ProfileScreen: React.FC = () => {
     setLoadingTeams(true);
     try {
       const divisionsMap: Record<string, string> = {};
+      const divisionIdsMap: Record<string, string> = {};
       
       // Get all tournaments to search for team games
       const tournaments = await firebaseService.getTournaments();
@@ -166,6 +224,7 @@ const ProfileScreen: React.FC = () => {
               const division = await firebaseService.getDivision(teamGame.divisionId);
               if (division) {
                 divisionsMap[teamName] = division.name;
+                divisionIdsMap[teamName] = division.id;
                 foundDivision = true;
               }
             }
@@ -176,9 +235,10 @@ const ProfileScreen: React.FC = () => {
       }
       
       setTeamDivisions(divisionsMap);
+      setTeamDivisionIds(divisionIdsMap);
       
       // Cache the results for 30 minutes (divisions don't change often)
-      await cacheData(cacheKey, divisionsMap, { expiryMinutes: 30 });
+      await cacheData(cacheKey, { divisions: divisionsMap, divisionIds: divisionIdsMap }, { expiryMinutes: 30 });
     } catch (error) {
       console.error('Error loading team divisions:', error);
     } finally {
@@ -196,6 +256,15 @@ const ProfileScreen: React.FC = () => {
       setNotificationsEnabled(userProfile.notificationsEnabled);
     }
   }, [userProfile]);
+
+  // Force refresh when following lists change (after follow/unfollow actions)
+  useEffect(() => {
+    if (userProfile && user) {
+      // Force refresh to immediately show changes
+      loadFollowedGames(true);
+      loadTeamDivisions(true);
+    }
+  }, [userProfile?.followingGames.length, userProfile?.followingTeams.length, user]);
 
   const handleToggleNotifications = async (value: boolean) => {
     if (!user) return;
@@ -243,6 +312,13 @@ const ProfileScreen: React.FC = () => {
         },
       ]
     );
+  };
+
+  const handleTeamPress = (teamName: string) => {
+    const divisionId = teamDivisionIds[teamName];
+    if (divisionId) {
+      navigation.navigate('TeamDetail', { teamName, divisionId });
+    }
   };
 
   const handleUnfollowGame = async (gameId: string, gameName: string) => {
@@ -436,11 +512,12 @@ const ProfileScreen: React.FC = () => {
                 <>
                   {userProfile.followingTeams.map((team, index) => (
                     <View key={`${team}-${index}`}>
-                      <TouchableOpacity
-                        style={styles.listItem}
-                        onPress={() => handleUnfollowTeam(team)}
-                      >
-                        <View style={styles.listItemContent}>
+                      <View style={styles.listItem}>
+                        <TouchableOpacity
+                          style={styles.listItemContent}
+                          onPress={() => handleTeamPress(team)}
+                          activeOpacity={0.7}
+                        >
                           <TeamImage teamName={team} size={40} />
                           <View style={styles.teamInfo}>
                             <Text variant="bodyLarge" style={styles.teamName}>
@@ -448,13 +525,15 @@ const ProfileScreen: React.FC = () => {
                             </Text>
                             {teamDivisions[team] && (
                               <Text variant="bodySmall" style={styles.teamDivision}>
-                                {teamDivisions[team]}
+                                Division: {teamDivisions[team]}
                               </Text>
                             )}
                           </View>
-                        </View>
-                        <Ionicons name="close-circle-outline" size={24} color="#f44336" />
-                      </TouchableOpacity>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleUnfollowTeam(team)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} testID={`unfollow-team-${team}`}>
+                          <Ionicons name="close-circle-outline" size={24} color="#f44336" />
+                        </TouchableOpacity>
+                      </View>
                       {index < userProfile.followingTeams.length - 1 && <Divider />}
                     </View>
                   ))}
@@ -556,11 +635,6 @@ const ProfileScreen: React.FC = () => {
                                 {game.teamB}
                               </Text>
                             </View>
-                            <View style={styles.statusBadge}>
-                              <Text style={styles.statusText}>
-                                {getStatusLabel(game.status)}
-                              </Text>
-                            </View>
                           </View>
                           <View style={styles.gameFooter}>
                             <Text variant="bodySmall" style={styles.gameScore}>
@@ -568,10 +642,15 @@ const ProfileScreen: React.FC = () => {
                             </Text>
                             {game.court && (
                               <Text variant="bodySmall" style={styles.courtLabel}>
-                                • Court {game.court}
+                                • {game.court}
                               </Text>
                             )}
                           </View>
+                        </View>
+                        <View style={styles.statusBadge}>
+                          <Text style={styles.statusText}>
+                            {getStatusLabel(game.status)}
+                          </Text>
                         </View>
                       </View>
                       <Ionicons name="close-circle-outline" size={24} color="#f44336" />
@@ -630,6 +709,10 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 16,
     elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
   },
   userInfoContainer: {
     alignItems: 'center',
@@ -775,6 +858,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    marginRight: 12,
   },
   listItemText: {
     marginLeft: 12,
@@ -803,7 +887,6 @@ const styles = StyleSheet.create({
   gameTeamsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
     flexWrap: 'wrap',
   },
   gameTeams: {
@@ -829,7 +912,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    marginLeft: 8,
+    marginLeft: 12,
+    alignSelf: 'center',
   },
   statusText: {
     fontSize: 10,

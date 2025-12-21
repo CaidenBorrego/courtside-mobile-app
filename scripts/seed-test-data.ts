@@ -44,9 +44,40 @@ async function findDocumentByName(collectionName: string, name: string) {
   return querySnapshot.empty ? null : { id: querySnapshot.docs[0].id, data: querySnapshot.docs[0].data() };
 }
 
+// Helper function to find existing bracket by name and division
+async function findBracketByNameAndDivision(name: string, divisionId: string) {
+  const q = query(
+    collection(db, 'brackets'),
+    where('name', '==', name),
+    where('divisionId', '==', divisionId)
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.empty ? null : { id: querySnapshot.docs[0].id, data: querySnapshot.docs[0].data() };
+}
+
+// Helper function to find existing pool by name and division
+async function findPoolByNameAndDivision(name: string, divisionId: string) {
+  const q = query(
+    collection(db, 'pools'),
+    where('name', '==', name),
+    where('divisionId', '==', divisionId)
+  );
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.empty ? null : { id: querySnapshot.docs[0].id, data: querySnapshot.docs[0].data() };
+}
+
 // Helper function to upsert (update or insert) a document
 async function upsertDocument(collectionName: string, data: any, uniqueField: string = 'name') {
-  const existing = await findDocumentByName(collectionName, data[uniqueField]);
+  let existing = null;
+  
+  // Special handling for brackets and pools - match by name AND divisionId
+  if (collectionName === 'brackets' && data.divisionId) {
+    existing = await findBracketByNameAndDivision(data.name, data.divisionId);
+  } else if (collectionName === 'pools' && data.divisionId) {
+    existing = await findPoolByNameAndDivision(data.name, data.divisionId);
+  } else {
+    existing = await findDocumentByName(collectionName, data[uniqueField]);
+  }
   
   if (existing) {
     // Update existing document
@@ -60,8 +91,8 @@ async function upsertDocument(collectionName: string, data: any, uniqueField: st
   }
 }
 
-// Helper function to find existing game by teams and start time
-async function findGameByTeamsAndTime(teamA: string, teamB: string, startTime: Timestamp) {
+// Helper function to find existing game by teams, time, and optional bracket/pool
+async function findGameByTeamsAndTime(teamA: string, teamB: string, startTime: Timestamp, bracketId?: string, poolId?: string) {
   const q = query(
     collection(db, 'games'),
     where('teamA', '==', teamA),
@@ -69,10 +100,18 @@ async function findGameByTeamsAndTime(teamA: string, teamB: string, startTime: T
   );
   const querySnapshot = await getDocs(q);
   
-  // Check if any match the start time
+  // Check if any match the start time and bracket/pool
   for (const doc of querySnapshot.docs) {
     const gameData = doc.data();
     if (gameData.startTime.seconds === startTime.seconds) {
+      // If bracketId is specified, must match
+      if (bracketId && gameData.bracketId !== bracketId) {
+        continue;
+      }
+      // If poolId is specified, must match
+      if (poolId && gameData.poolId !== poolId) {
+        continue;
+      }
       return { id: doc.id, data: gameData };
     }
   }
@@ -81,7 +120,13 @@ async function findGameByTeamsAndTime(teamA: string, teamB: string, startTime: T
 
 // Helper function to upsert a game
 async function upsertGame(gameData: any) {
-  const existing = await findGameByTeamsAndTime(gameData.teamA, gameData.teamB, gameData.startTime);
+  const existing = await findGameByTeamsAndTime(
+    gameData.teamA, 
+    gameData.teamB, 
+    gameData.startTime,
+    gameData.bracketId,
+    gameData.poolId
+  );
   
   if (existing) {
     // Update existing game

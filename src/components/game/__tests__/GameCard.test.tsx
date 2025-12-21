@@ -118,13 +118,15 @@ describe('GameCard', () => {
   it('displays court information when court field is present', () => {
     const { getByText } = renderComponent(mockGame);
     
-    expect(getByText('Court 1')).toBeTruthy();
+    expect(getByText('1')).toBeTruthy();
   });
 
   it('does not display court information when court field is absent', () => {
     const gameWithoutCourt = { ...mockGame, court: undefined };
     const { queryByText } = renderComponent(gameWithoutCourt);
     
-    expect(queryByText(/Court/)).toBeNull();
+    // Should not have the separator before court
+    const text = queryByText('•');
+    expect(text).toBeNull();
   });
 });

@@ -8,6 +8,7 @@ import { userProfileService } from '../../services/user';
 import { useAuth } from '../../hooks';
 import { TeamStats, Game, GameStatus, RootStackParamList } from '../../types';
 import { StackNavigationProp } from '@react-navigation/stack';
+import TeamImage from '../../components/common/TeamImage';
 
 type TeamDetailRouteProp = RouteProp<RootStackParamList, 'TeamDetail'>;
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -92,10 +93,6 @@ const TeamDetailScreen: React.FC = () => {
     }
   };
 
-  const handleGamePress = (gameId: string) => {
-    navigation.navigate('GameDetail', { gameId });
-  };
-
   const formatDateTime = (timestamp: any): string => {
     if (!timestamp) return 'TBD';
     const date = timestamp.toDate();
@@ -162,6 +159,10 @@ const TeamDetailScreen: React.FC = () => {
       {/* Team Header */}
       <Card style={styles.headerCard}>
         <Card.Content>
+          <View style={styles.teamHeader}>
+            <TeamImage teamName={teamName} size={80} />
+          </View>
+          
           <Text variant="headlineMedium" style={styles.teamName}>
             {teamName}
           </Text>
@@ -263,9 +264,8 @@ const TeamDetailScreen: React.FC = () => {
               const opponentScore = getOpponentScore(game);
 
               return (
-                <TouchableOpacity
+                <View
                   key={game.id}
-                  onPress={() => handleGamePress(game.id)}
                   style={styles.gameItem}
                 >
                   <View style={styles.gameHeader}>
@@ -308,7 +308,7 @@ const TeamDetailScreen: React.FC = () => {
                   </View>
                   
                   {index < games.length - 1 && <Divider style={styles.gameDivider} />}
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -356,7 +356,15 @@ const styles = StyleSheet.create({
   headerCard: {
     margin: 16,
     marginBottom: 8,
-    elevation: 4,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+  },
+  teamHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
   teamName: {
     fontWeight: 'bold',
@@ -382,7 +390,11 @@ const styles = StyleSheet.create({
     margin: 16,
     marginTop: 8,
     marginBottom: 8,
-    elevation: 4,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
   },
   sectionTitle: {
     fontWeight: '600',
@@ -413,7 +425,11 @@ const styles = StyleSheet.create({
   gamesCard: {
     margin: 16,
     marginTop: 8,
-    elevation: 4,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
   },
   noGamesText: {
     textAlign: 'center',

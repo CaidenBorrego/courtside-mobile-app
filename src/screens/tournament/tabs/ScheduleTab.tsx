@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, SectionList, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Text, Searchbar, Card } from 'react-native-paper';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { Text, Searchbar } from 'react-native-paper';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { firebaseService } from '../../../services/firebase';
 import { Game, Division, RootStackParamList } from '../../../types';
+import { useTournament } from '../../../contexts/TournamentContext';
+import { tournamentDataCache } from '../../../services/cache/TournamentDataCache';
 import GameCard from '../../../components/game/GameCard';
-import Button from '../../../components/common/Button';
+import DivisionSelector from '../../../components/tournament/DivisionSelector';
 
 interface ScheduleTabProps {
   tournamentId: string;
@@ -15,170 +15,81 @@ interface ScheduleTabProps {
 
 type ScheduleNavigationProp = StackNavigationProp<RootStackParamList>;
 
-interface GameSection {
-  divisionId: string;
-  divisionName: string;
-  data: Game[];
-}
-
 const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
   const navigation = useNavigation<ScheduleNavigationProp>();
+  const { selectedDivisionId, setSelectedDivisionId, divisions, divisionsLoading } = useTournament();
   const [games, setGames] = useState<Game[]>([]);
-  const [divisions, setDivisions] = useState<Division[]>([]);
-  const [gameSections, setGameSections] = useState<GameSection[]>([]);
-  const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // Use useFocusEffect to reload data when tab comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      console.log('📅 ScheduleTab focused for tournament:', tournamentId);
-      setLoading(true);
-      
-      // Load divisions first
-      const loadData = async () => {
-        try {
-          const divisionsData = await firebaseService.getDivisionsByTournament(tournamentId);
-          setDivisions(divisionsData);
-          
-          // Auto-expand if only one division
-          if (divisionsData.length === 1) {
-            setExpandedDivisions(new Set([divisionsData[0].id]));
-          }
-        } catch (err) {
-          console.error('❌ Failed to load divisions:', err);
-        }
-      };
-      
-      loadData();
-      
-      // Set up real-time listener for games
-      const unsubscribe = firebaseService.onGamesByTournamentSnapshot(
-        tournamentId,
-        (updatedGames) => {
-          console.log('📅 Games received:', updatedGames.length, 'games');
-          setGames(updatedGames);
-          setLoading(false);
-          setError(null);
-        },
-        (err) => {
-          console.error('❌ Failed to load games:', err);
-          setError('Failed to load games. Please try again.');
-          setLoading(false);
-        }
-      );
-
-      return () => {
-        console.log('📅 ScheduleTab unfocused, cleaning up listener');
-        unsubscribe();
-      };
-    }, [tournamentId])
-  );
-
-  // Group games by division and apply search filter
+  // Set up games listener using cache service
   useEffect(() => {
-    const divisionMap = new Map<string, Division>();
-    divisions.forEach(div => divisionMap.set(div.id, div));
+    setLoading(true);
+    
+    tournamentDataCache.setupGamesListener(
+      tournamentId,
+      (updatedGames) => {
+        setGames(updatedGames);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error('❌ Failed to load games:', err);
+        setError('Failed to load games. Please try again.');
+        setLoading(false);
+      }
+    );
+  }, [tournamentId]);
 
-    // Filter games by search query
-    let filteredGames = games;
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    tournamentDataCache.forceRefresh(tournamentId);
+    
+    // Reload divisions and games
+    try {
+      await tournamentDataCache.getDivisions(tournamentId);
+      // Games will auto-update via the listener
+      setTimeout(() => setRefreshing(false), 500);
+    } catch (error) {
+      console.error('Error refreshing:', error);
+      setRefreshing(false);
+    }
+  }, [tournamentId]);
+
+  // Filter games by selected division and search query
+  const filteredGames = games.filter(game => {
+    // Filter by division
+    if (selectedDivisionId && game.divisionId !== selectedDivisionId) {
+      return false;
+    }
+    
+    // Filter by search query
     if (searchQuery.trim() !== '') {
-      filteredGames = games.filter(game =>
-        game.teamA.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        game.teamB.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (game.gameLabel && game.gameLabel.toLowerCase().includes(searchQuery.toLowerCase()))
+      const query = searchQuery.toLowerCase();
+      return (
+        game.teamA.toLowerCase().includes(query) ||
+        game.teamB.toLowerCase().includes(query) ||
+        (game.gameLabel && game.gameLabel.toLowerCase().includes(query))
       );
     }
-
-    // Group by division
-    const gamesByDivision = new Map<string, Game[]>();
-    filteredGames.forEach(game => {
-      if (!gamesByDivision.has(game.divisionId)) {
-        gamesByDivision.set(game.divisionId, []);
-      }
-      gamesByDivision.get(game.divisionId)!.push(game);
-    });
-
-    // Sort games within each division by start time
-    gamesByDivision.forEach(divGames => {
-      divGames.sort((a, b) => {
-        const timeA = a.startTime?.toMillis?.() || 0;
-        const timeB = b.startTime?.toMillis?.() || 0;
-        return timeA - timeB;
-      });
-    });
-
-    // Create sections
-    const sections: GameSection[] = [];
-    divisions.forEach(division => {
-      const divGames = gamesByDivision.get(division.id) || [];
-      if (divGames.length > 0) {
-        sections.push({
-          divisionId: division.id,
-          divisionName: division.name,
-          data: divGames,
-        });
-      }
-    });
-
-    setGameSections(sections);
-  }, [games, divisions, searchQuery]);
-
-  const toggleDivisionExpanded = (divisionId: string) => {
-    const newExpanded = new Set(expandedDivisions);
-    if (newExpanded.has(divisionId)) {
-      newExpanded.delete(divisionId);
-    } else {
-      newExpanded.add(divisionId);
-    }
-    setExpandedDivisions(newExpanded);
-  };
+    
+    return true;
+  }).sort((a, b) => {
+    // Sort by start time
+    const timeA = a.startTime?.toMillis?.() || 0;
+    const timeB = b.startTime?.toMillis?.() || 0;
+    return timeA - timeB;
+  });
 
   const renderGameCard = ({ item }: { item: Game }) => (
     <GameCard game={item} showLocation={true} />
   );
 
-  const renderSectionHeader = ({ section }: { section: GameSection }) => {
-    // If only one division, don't show header
-    if (divisions.length === 1) {
-      return null;
-    }
-
-    const isExpanded = expandedDivisions.has(section.divisionId);
-
-    return (
-      <TouchableOpacity 
-        onPress={() => toggleDivisionExpanded(section.divisionId)}
-        activeOpacity={0.7}
-      >
-        <Card style={styles.divisionHeader} mode="elevated">
-          <Card.Content>
-            <View style={styles.divisionHeaderContent}>
-              <View style={styles.divisionHeaderLeft}>
-                <Text variant="titleMedium" style={styles.divisionTitle}>
-                  {section.divisionName}
-                </Text>
-                <Text variant="bodySmall" style={styles.divisionSubtitle}>
-                  {section.data.length} game{section.data.length !== 1 ? 's' : ''}
-                </Text>
-              </View>
-              <Ionicons 
-                name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                size={24} 
-                color="#6B7280" 
-              />
-            </View>
-          </Card.Content>
-        </Card>
-      </TouchableOpacity>
-    );
-  };
-
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <Text variant="titleMedium" style={styles.emptyText}>
+      <Text variant="bodyLarge" style={styles.emptyText}>
         {searchQuery ? 'No games match your search' : 'No games scheduled yet'}
       </Text>
     </View>
@@ -206,24 +117,17 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
         <Text variant="bodyMedium" style={styles.errorText}>
           {error}
         </Text>
-        <View style={styles.retryButton}>
-          <Button 
-            title="Retry" 
-            onPress={handleRetry}
-          />
-        </View>
       </View>
     );
   }
 
-  // Filter sections based on expanded state
-  const visibleSections = gameSections.map(section => ({
-    ...section,
-    data: divisions.length === 1 || expandedDivisions.has(section.divisionId) ? section.data : [],
-  }));
-
   return (
     <View style={styles.container}>
+      <DivisionSelector
+        divisions={divisions}
+        selectedDivisionId={selectedDivisionId}
+        onSelectDivision={setSelectedDivisionId}
+      />
       <View style={styles.headerContainer}>
         <Searchbar
           placeholder="Search by team or game type..."
@@ -234,16 +138,22 @@ const ScheduleTab: React.FC<ScheduleTabProps> = ({ tournamentId }) => {
           placeholderTextColor="#9CA3AF"
         />
       </View>
-      <SectionList
-        sections={visibleSections}
+      <FlatList
+        data={filteredGames}
         renderItem={renderGameCard}
-        renderSectionHeader={renderSectionHeader}
         keyExtractor={(item) => item.id}
         ListEmptyComponent={renderEmptyState}
         contentContainerStyle={
-          gameSections.length === 0 ? styles.emptyListContainer : styles.listContainer
+          filteredGames.length === 0 ? styles.emptyListContainer : styles.listContainer
         }
-        stickySectionHeadersEnabled={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
       />
     </View>
   );
@@ -262,6 +172,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     padding: 16,
+    paddingTop: 8,
     paddingBottom: 8,
   },
   searchBar: {
@@ -300,30 +211,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#6B7280',
     marginBottom: 16,
-  },
-  retryButton: {
-    marginTop: 8,
-  },
-  divisionHeader: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 4,
-    elevation: 2,
-  },
-  divisionHeaderContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  divisionHeaderLeft: {
-    flex: 1,
-  },
-  divisionTitle: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  divisionSubtitle: {
-    color: '#6B7280',
   },
 });
 

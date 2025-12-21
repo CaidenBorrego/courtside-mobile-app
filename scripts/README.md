@@ -1,5 +1,39 @@
 # Scripts
 
+## Clear Test Tournaments
+
+The `clear-test-tournaments.ts` script removes all test tournaments from your Firestore database while preserving the Hays tournament (production data).
+
+### What it does:
+
+- Identifies the Hays tournament (case-insensitive search)
+- Deletes all other tournaments and their related data:
+  - Divisions
+  - Games
+  - Pools
+  - Brackets
+  - Standings
+- Preserves the Hays tournament and all its data
+
+### How to run:
+
+```bash
+npm run clear:test-tournaments
+```
+
+### Prerequisites:
+
+Make sure your `.env` file has the Firebase Admin credentials:
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+
+### ⚠️ Warning:
+
+This script permanently deletes data. Make sure you have a backup if needed. The Hays tournament will be preserved.
+
+---
+
 ## Seed Test Data
 
 The `seed-test-data.ts` script populates your Firestore database with sample tournament data for testing and development.

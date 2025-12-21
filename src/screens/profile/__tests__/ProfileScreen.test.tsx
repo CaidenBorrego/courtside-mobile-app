@@ -106,11 +106,14 @@ describe('ProfileScreen', () => {
   });
 
   it('should display followed teams list', async () => {
-    const { getByText } = renderWithNavigation(<ProfileScreen />);
+    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
 
     await waitFor(() => {
-      expect(getByText('Team A')).toBeTruthy();
-      expect(getByText('Team B')).toBeTruthy();
+      // Team names appear in both teams list and games list
+      const teamAElements = getAllByText('Team A');
+      expect(teamAElements.length).toBeGreaterThan(0);
+      const teamBElements = getAllByText('Team B');
+      expect(teamBElements.length).toBeGreaterThan(0);
     });
   });
 
@@ -139,17 +142,22 @@ describe('ProfileScreen', () => {
   it('should handle unfollow team', async () => {
     mockUserProfileService.unfollowTeam.mockResolvedValue();
 
-    const { getAllByText } = renderWithNavigation(<ProfileScreen />);
+    const { getAllByTestId } = renderWithNavigation(<ProfileScreen />);
 
+    // Wait for teams to load
     await waitFor(() => {
-      const teamElements = getAllByText('Team A');
-      expect(teamElements.length).toBeGreaterThan(0);
+      const unfollowIcons = getAllByTestId(/^unfollow-team-/);
+      expect(unfollowIcons.length).toBeGreaterThan(0);
     });
 
-    // Get the team item from the Followed Teams section (not the games section)
-    const teamElements = getAllByText('Team A');
-    // The first Team A should be in the teams list
-    fireEvent.press(teamElements[0]);
+    // Click the unfollow icon for Team A
+    const unfollowIcons = getAllByTestId(/^unfollow-team-/);
+    const teamAUnfollowIcon = unfollowIcons.find(icon => 
+      icon.props.testID === 'unfollow-team-Team A'
+    );
+    
+    expect(teamAUnfollowIcon).toBeTruthy();
+    fireEvent.press(teamAUnfollowIcon!);
 
     // Confirm the alert
     expect(Alert.alert).toHaveBeenCalledWith(

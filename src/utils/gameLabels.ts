@@ -71,7 +71,7 @@ export const formatBracketRound = (round: string): string => {
 };
 
 /**
- * Checks if a team name is a placeholder (TBD, Winner of, etc.)
+ * Checks if a team name is a placeholder (TBD, Winner of, pool placeholders, etc.)
  * @param teamName - The team name to check
  * @returns True if the team name is a placeholder
  */
@@ -83,9 +83,10 @@ export const isPlaceholderTeam = (teamName: string): boolean => {
   return (
     lowerName === 'tbd' ||
     lowerName === 'to be determined' ||
-    lowerName.startsWith('winner of') ||
-    lowerName.startsWith('loser of') ||
+    lowerName.startsWith('winner') ||
+    lowerName.startsWith('loser') ||
     lowerName.startsWith('seed') ||
+    lowerName.match(/^\d+(st|nd|rd|th)\s+pool/i) !== null || // "1st Pool A", "2nd Pool B"
     lowerName === '' ||
     lowerName === '-'
   );

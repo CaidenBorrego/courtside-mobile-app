@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Text } from 'react-native-paper';
-import { Game, GameStatus } from '../../types';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { Game, GameStatus, RootStackParamList } from '../../types';
 import { format } from 'date-fns';
 import { useTheme } from '../../hooks/useTheme';
 import FollowButton from '../common/FollowButton';
@@ -13,6 +15,8 @@ interface GameCardProps {
   showFollowButton?: boolean;
 }
 
+type NavigationProp = StackNavigationProp<RootStackParamList>;
+
 const DEFAULT_TEAM_IMAGE = 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=200&h=200&fit=crop';
 
 const GameCard: React.FC<GameCardProps> = ({ 
@@ -21,6 +25,13 @@ const GameCard: React.FC<GameCardProps> = ({
   showFollowButton = true
 }) => {
   const { colors } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
+
+  const handleTeamPress = (teamName: string) => {
+    if (!isPlaceholderTeam(teamName)) {
+      navigation.navigate('TeamDetail', { teamName, divisionId: game.divisionId });
+    }
+  };
 
   const formatTime = (timestamp: any) => {
     try {
@@ -90,7 +101,7 @@ const GameCard: React.FC<GameCardProps> = ({
   return (
     <View style={styles.container}>
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        {/* Header with Game Label */}
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
@@ -100,18 +111,8 @@ const GameCard: React.FC<GameCardProps> = ({
               <>
                 <Text style={[styles.separator, { color: colors.textTertiary }]}>•</Text>
                 <Text style={[styles.courtText, { color: colors.textSecondary }]}>
-                  Court {game.court}
+                  {game.court}
                 </Text>
-              </>
-            )}
-            {gameLabel && gameLabel.trim() !== '' && (
-              <>
-                <Text style={[styles.separator, { color: colors.textTertiary }]}>•</Text>
-                <View style={[styles.gameLabelBadge, { backgroundColor: colors.textSecondary }]}>
-                  <Text style={[styles.gameLabelText, { color: '#FFFFFF' }]}>
-                    {gameLabel}
-                  </Text>
-                </View>
               </>
             )}
           </View>
@@ -122,10 +123,26 @@ const GameCard: React.FC<GameCardProps> = ({
           </View>
         </View>
 
+        {/* Game Label - Centered */}
+        {gameLabel && gameLabel.trim() !== '' && (
+          <View style={styles.gameLabelContainer}>
+            <View style={[styles.gameLabelBadge, { backgroundColor: colors.text }]}>
+              <Text style={[styles.gameLabelText, { color: colors.background }]}>
+                {gameLabel}
+              </Text>
+            </View>
+          </View>
+        )}
+
       {/* Teams */}
       <View style={styles.teamsContainer}>
         {/* Team A */}
-        <View style={styles.teamSection}>
+        <TouchableOpacity 
+          style={styles.teamSection}
+          onPress={() => handleTeamPress(game.teamA)}
+          disabled={isPlaceholderTeam(game.teamA)}
+          activeOpacity={0.7}
+        >
           <Image
             source={{ uri: game.teamAImageUrl || DEFAULT_TEAM_IMAGE }}
             style={[
@@ -150,13 +167,18 @@ const GameCard: React.FC<GameCardProps> = ({
           >
             {formatTeamName(game.teamA)}
           </Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Score/VS */}
         {renderScore()}
 
         {/* Team B */}
-        <View style={styles.teamSection}>
+        <TouchableOpacity 
+          style={styles.teamSection}
+          onPress={() => handleTeamPress(game.teamB)}
+          disabled={isPlaceholderTeam(game.teamB)}
+          activeOpacity={0.7}
+        >
           <Image
             source={{ uri: game.teamBImageUrl || DEFAULT_TEAM_IMAGE }}
             style={[
@@ -181,11 +203,11 @@ const GameCard: React.FC<GameCardProps> = ({
           >
             {formatTeamName(game.teamB)}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
-        {/* Follow Button */}
-        {showFollowButton && (
+        {/* Follow Button - Only show for games with real teams */}
+        {showFollowButton && !isPlaceholderTeam(game.teamA) && !isPlaceholderTeam(game.teamB) && (
           <View style={styles.followButtonContainer}>
             <FollowButton
               itemId={game.id}
@@ -214,7 +236,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   headerLeft: {
     flexDirection: 'row',
@@ -241,6 +263,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  gameLabelContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  gameLabelBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  gameLabelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   teamsContainer: {
     flexDirection: 'row',
@@ -291,16 +327,6 @@ const styles = StyleSheet.create({
   followButtonContainer: {
     marginTop: 16,
     alignItems: 'center',
-  },
-  gameLabelBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-  },
-  gameLabelText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.3,
   },
   placeholderImage: {
     opacity: 0.4,

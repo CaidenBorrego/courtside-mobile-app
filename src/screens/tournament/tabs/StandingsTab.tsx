@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
 import { Text, Card, DataTable, Divider } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { teamStatsService } from '../../../services/tournament/TeamStatsService';
-import { firebaseService } from '../../../services/firebase';
 import { Division, TeamStats, Game, RootStackParamList } from '../../../types';
+import { useTournament } from '../../../contexts/TournamentContext';
+import { tournamentDataCache } from '../../../services/cache/TournamentDataCache';
+import DivisionSelector from '../../../components/tournament/DivisionSelector';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -16,66 +17,25 @@ interface StandingsTabProps {
 
 const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
   const navigation = useNavigation<NavigationProp>();
-  const [divisions, setDivisions] = useState<Division[]>([]);
+  const { selectedDivisionId, setSelectedDivisionId, divisions, divisionsLoading } = useTournament();
   const [standingsByDivision, setStandingsByDivision] = useState<Map<string, TeamStats[]>>(new Map());
-  const [expandedDivisions, setExpandedDivisions] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dataLoadedRef = useRef(false);
 
-  // Recalculate standings for all divisions
-  const recalculateStandings = useCallback(async (divisionsList: Division[]) => {
-    const standingsMap = new Map<string, TeamStats[]>();
-
-    for (const division of divisionsList) {
-      const standings = await teamStatsService.getDivisionStandings(division.id);
-      standingsMap.set(division.id, standings);
+  const loadStandings = useCallback(async () => {
+    if (dataLoadedRef.current || divisions.length === 0) {
+      return;
     }
 
-    setStandingsByDivision(standingsMap);
-  }, []);
-
-  useEffect(() => {
-    loadStandings();
-  }, [tournamentId]);
-
-  // Auto-expand if there's only one division
-  useEffect(() => {
-    if (divisions.length === 1) {
-      setExpandedDivisions(new Set([divisions[0].id]));
-    }
-  }, [divisions]);
-
-  // Subscribe to game changes for real-time updates
-  useEffect(() => {
-    if (divisions.length === 0) return;
-
-    const unsubscribe = firebaseService.onGamesByTournamentSnapshot(
-      tournamentId,
-      async (games: Game[]) => {
-        // Recalculate standings when games change
-        await recalculateStandings(divisions);
-      },
-      (error) => {
-        console.error('Error in games subscription:', error);
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [tournamentId, divisions, recalculateStandings]);
-
-  const loadStandings = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Load divisions
-      const divisionsData = await firebaseService.getDivisionsByTournament(tournamentId);
-      setDivisions(divisionsData);
-
-      // Load standings for each division
-      await recalculateStandings(divisionsData);
+      const standings = await tournamentDataCache.getStandings(tournamentId, divisions);
+      setStandingsByDivision(standings);
+      dataLoadedRef.current = true;
 
     } catch (err) {
       console.error('Error loading standings:', err);
@@ -83,109 +43,35 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [divisions, tournamentId]);
 
-  const toggleDivisionExpanded = (divisionId: string) => {
-    const newExpanded = new Set(expandedDivisions);
-    if (newExpanded.has(divisionId)) {
-      newExpanded.delete(divisionId);
-    } else {
-      newExpanded.add(divisionId);
+  useEffect(() => {
+    loadStandings();
+  }, [loadStandings]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    dataLoadedRef.current = false;
+    tournamentDataCache.forceRefresh(tournamentId);
+    
+    try {
+      await loadStandings();
+    } catch (error) {
+      console.error('Error refreshing:', error);
+    } finally {
+      setRefreshing(false);
     }
-    setExpandedDivisions(newExpanded);
+  }, [tournamentId, loadStandings]);
+
+  // Note: Standings are automatically updated via cache service when games change
+
+  const handleTeamPress = (teamName: string) => {
+    if (selectedDivisionId) {
+      navigation.navigate('TeamDetail', { teamName, divisionId: selectedDivisionId });
+    }
   };
 
-  const handleTeamPress = (teamName: string, divisionId: string) => {
-    navigation.navigate('TeamDetail', { teamName, divisionId });
-  };
-
-  const renderDivisionCard = (division: Division) => {
-    const isExpanded = expandedDivisions.has(division.id);
-    const standings = standingsByDivision.get(division.id) || [];
-
-    return (
-      <Card key={division.id} style={styles.divisionCard} mode="elevated">
-        <TouchableOpacity onPress={() => toggleDivisionExpanded(division.id)} activeOpacity={0.7}>
-          <Card.Content>
-            <View style={styles.cardHeader}>
-              <View style={styles.headerLeft}>
-                <Text variant="titleLarge" style={styles.divisionTitle}>
-                  {division.name}
-                </Text>
-              </View>
-              <Ionicons 
-                name={isExpanded ? 'chevron-up' : 'chevron-down'} 
-                size={24} 
-                color="#6B7280" 
-              />
-            </View>
-            <Text variant="bodySmall" style={styles.divisionSubtitle}>
-              {standings.length} team{standings.length !== 1 ? 's' : ''}
-            </Text>
-          </Card.Content>
-        </TouchableOpacity>
-
-        {isExpanded && (
-          <Card.Content style={styles.expandedContent}>
-            <Divider style={styles.divider} />
-            {standings.length === 0 ? (
-              <Text variant="bodySmall" style={styles.emptyText}>
-                No teams in this division yet
-              </Text>
-            ) : (
-              <DataTable>
-                <DataTable.Header>
-                  <DataTable.Title style={styles.rankColumn}>Rank</DataTable.Title>
-                  <DataTable.Title style={styles.teamColumn}>Team</DataTable.Title>
-                  <DataTable.Title numeric style={styles.recordColumn}>W-L</DataTable.Title>
-                  <DataTable.Title numeric style={styles.statColumn}>PF</DataTable.Title>
-                  <DataTable.Title numeric style={styles.statColumn}>PA</DataTable.Title>
-                  <DataTable.Title numeric style={styles.statColumn}>Diff</DataTable.Title>
-                </DataTable.Header>
-
-                {standings.map((standing) => (
-                  <DataTable.Row key={standing.teamName}>
-                    <DataTable.Cell style={styles.rankColumn}>
-                      {standing.rank}
-                    </DataTable.Cell>
-                    <DataTable.Cell style={styles.teamColumn}>
-                      <TouchableOpacity 
-                        onPress={() => handleTeamPress(standing.teamName, division.id)}
-                        activeOpacity={0.7}
-                      >
-                        <Text 
-                          variant="bodyMedium" 
-                          style={styles.teamNameTappable}
-                          numberOfLines={1}
-                        >
-                          {standing.teamName}
-                        </Text>
-                      </TouchableOpacity>
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.recordColumn}>
-                      {standing.wins}-{standing.losses}
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.statColumn}>
-                      {standing.pointsFor}
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.statColumn}>
-                      {standing.pointsAgainst}
-                    </DataTable.Cell>
-                    <DataTable.Cell numeric style={styles.statColumn}>
-                      {standing.pointDifferential > 0 ? '+' : ''}
-                      {standing.pointDifferential}
-                    </DataTable.Cell>
-                  </DataTable.Row>
-                ))}
-              </DataTable>
-            )}
-          </Card.Content>
-        )}
-      </Card>
-    );
-  };
-
-  if (loading) {
+  if (divisionsLoading || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#000000" />
@@ -229,7 +115,18 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
     const standings = standingsByDivision.get(division.id) || [];
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
+      >
         {standings.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="podium-outline" size={64} color="#D1D5DB" />
@@ -254,7 +151,7 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
             {standings.map((standing) => (
               <DataTable.Row key={standing.teamName}>
                 <DataTable.Cell style={styles.rankColumn}>
-                  {standing.rank}
+                  <Text style={styles.rankText}>{standing.rank}</Text>
                 </DataTable.Cell>
                 <DataTable.Cell style={styles.teamColumn}>
                   <TouchableOpacity 
@@ -292,10 +189,81 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
   }
 
   // Multiple divisions - show collapsible cards
+  const selectedStandings = selectedDivisionId ? (standingsByDivision.get(selectedDivisionId) || []) : [];
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {divisions.map(renderDivisionCard)}
-    </ScrollView>
+    <View style={styles.container}>
+      <DivisionSelector
+        divisions={divisions}
+        selectedDivisionId={selectedDivisionId}
+        onSelectDivision={setSelectedDivisionId}
+      />
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#000000"
+            colors={['#000000']}
+          />
+        }
+      >
+        {selectedStandings.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="podium-outline" size={64} color="#D1D5DB" />
+            <Text variant="titleMedium" style={styles.emptyTitle}>
+              No Teams Yet
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptySubtitle}>
+              No teams have played games in this division yet.
+            </Text>
+          </View>
+        ) : (
+          <DataTable>
+            <DataTable.Header>
+              <DataTable.Title style={styles.rankColumn}>Rank</DataTable.Title>
+              <DataTable.Title style={styles.teamColumn}>Team</DataTable.Title>
+              <DataTable.Title numeric style={styles.recordColumn}>W-L</DataTable.Title>
+              <DataTable.Title numeric style={styles.statColumn}>PF</DataTable.Title>
+              <DataTable.Title numeric style={styles.statColumn}>PA</DataTable.Title>
+              <DataTable.Title numeric style={styles.statColumn}>Diff</DataTable.Title>
+            </DataTable.Header>
+
+            {selectedStandings.map((standing) => (
+              <DataTable.Row key={standing.teamName}>
+                <DataTable.Cell style={styles.rankColumn}>
+                  <Text style={styles.rankText}>{standing.rank}</Text>
+                </DataTable.Cell>
+                <DataTable.Cell style={styles.teamColumn}>
+                  <Text 
+                    variant="bodyMedium" 
+                    style={styles.teamNameTappable}
+                    numberOfLines={1}
+                    onPress={() => handleTeamPress(standing.teamName)}
+                  >
+                    {standing.teamName}
+                  </Text>
+                </DataTable.Cell>
+                <DataTable.Cell numeric style={styles.recordColumn}>
+                  {standing.wins}-{standing.losses}
+                </DataTable.Cell>
+                <DataTable.Cell numeric style={styles.statColumn}>
+                  {standing.pointsFor}
+                </DataTable.Cell>
+                <DataTable.Cell numeric style={styles.statColumn}>
+                  {standing.pointsAgainst}
+                </DataTable.Cell>
+                <DataTable.Cell numeric style={styles.statColumn}>
+                  {standing.pointDifferential > 0 ? '+' : ''}
+                  {standing.pointDifferential}
+                </DataTable.Cell>
+              </DataTable.Row>
+            ))}
+          </DataTable>
+        )}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -382,10 +350,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   rankColumn: {
-    flex: 0.5,
+    flex: 0.45,
+    justifyContent: 'center',
+    marginLeft: -8,
+  },
+  rankText: {
+    textAlign: 'left',
   },
   teamColumn: {
     flex: 2,
+    marginLeft: 8,
   },
   recordColumn: {
     flex: 0.8,

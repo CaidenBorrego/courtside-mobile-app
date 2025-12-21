@@ -2,78 +2,8 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper functions
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    // User profiles - users can read/write their own profile
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isAdmin();
-    }
-    
-    // Tournaments - public read, admin write
-    match /tournaments/{tournamentId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Games - public read, admin write with structure validation
-    match /games/{gameId} {
-      allow read: if true;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && 
-        // Prevent unauthorized changes to structure fields
-        (!request.resource.data.keys().hasAny(['poolId', 'bracketId']) ||
-         // If structure fields exist, they must not change from original values
-         (!resource.data.keys().hasAny(['poolId']) || request.resource.data.poolId == resource.data.poolId) &&
-         (!resource.data.keys().hasAny(['bracketId']) || request.resource.data.bracketId == resource.data.bracketId));
-      allow delete: if isAdmin();
-    }
-    
-    // Divisions - public read, admin write
-    match /divisions/{divisionId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // Locations - public read, admin write
-    match /locations/{locationId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-    
-    // User profiles (alternative collection name)
-    match /userProfiles/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isAdmin();
-    }
-    
-    // Pools - authenticated read, admin write
-    match /pools/{poolId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-    
-    // Brackets - authenticated read, admin write
-    match /brackets/{bracketId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }

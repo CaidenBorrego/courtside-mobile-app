@@ -14,6 +14,7 @@ import {
   Pool,
 } from '../../types';
 import { cacheData, getCachedData, clearCache, CacheKeys } from '../../utils/cache';
+import { isPlaceholderTeam } from '../../utils/gameLabels';
 
 /**
  * Service for calculating team statistics and standings
@@ -145,11 +146,15 @@ export class TeamStatsService {
         ...doc.data(),
       } as Game));
 
-      // Extract unique team names
+      // Extract unique team names (excluding placeholders)
       const teamNames = new Set<string>();
       games.forEach(game => {
-        if (game.teamA) teamNames.add(game.teamA);
-        if (game.teamB) teamNames.add(game.teamB);
+        if (game.teamA && !isPlaceholderTeam(game.teamA)) {
+          teamNames.add(game.teamA);
+        }
+        if (game.teamB && !isPlaceholderTeam(game.teamB)) {
+          teamNames.add(game.teamB);
+        }
       });
 
       // Calculate stats for each team

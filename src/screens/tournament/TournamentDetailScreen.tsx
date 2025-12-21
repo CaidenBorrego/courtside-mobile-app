@@ -5,6 +5,7 @@ import { createMaterialTopTabNavigator } from '@react-navigation/material-top-ta
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { firebaseService } from '../../services/firebase';
 import { Tournament, RootStackParamList } from '../../types';
+import { TournamentProvider } from '../../contexts/TournamentContext';
 import OverviewTab from './tabs/OverviewTab';
 import ScheduleTab from './tabs/ScheduleTab';
 import PoolsAndBracketsTab from './tabs/PoolsAndBracketsTab';
@@ -58,50 +59,52 @@ const TournamentDetailScreen: React.FC = () => {
   }
 
   return (
-    <Tab.Navigator
-      screenOptions={{
-        tabBarActiveTintColor: '#000000',
-        tabBarInactiveTintColor: '#6B7280',
-        tabBarIndicatorStyle: {
-          backgroundColor: '#000000',
-          height: 3,
-        },
-        tabBarLabelStyle: {
-          fontSize: 14,
-          fontWeight: '600',
-          textTransform: 'none',
-        },
-        tabBarStyle: {
-          backgroundColor: '#fff',
-          elevation: 4,
-        },
-      }}
-    >
-      <Tab.Screen 
-        name="Overview" 
-        options={{ tabBarLabel: 'Overview' }}
+    <TournamentProvider tournamentId={tournamentId}>
+      <Tab.Navigator
+        screenOptions={{
+          tabBarActiveTintColor: '#000000',
+          tabBarInactiveTintColor: '#6B7280',
+          tabBarIndicatorStyle: {
+            backgroundColor: '#000000',
+            height: 3,
+          },
+          tabBarLabelStyle: {
+            fontSize: 14,
+            fontWeight: '600',
+            textTransform: 'none',
+          },
+          tabBarStyle: {
+            backgroundColor: '#fff',
+            elevation: 4,
+          },
+        }}
       >
-        {() => <OverviewTab tournament={tournament} />}
-      </Tab.Screen>
-      <Tab.Screen 
-        name="Schedule" 
-        options={{ tabBarLabel: 'Schedule' }}
-      >
-        {() => <ScheduleTab tournamentId={tournamentId} />}
-      </Tab.Screen>
-      <Tab.Screen 
-        name="PoolsAndBrackets" 
-        options={{ tabBarLabel: 'Pools & Brackets' }}
-      >
-        {() => <PoolsAndBracketsTab tournamentId={tournamentId} />}
-      </Tab.Screen>
-      <Tab.Screen 
-        name="Standings" 
-        options={{ tabBarLabel: 'Standings' }}
-      >
-        {() => <StandingsTab tournamentId={tournamentId} />}
-      </Tab.Screen>
-    </Tab.Navigator>
+        <Tab.Screen 
+          name="Overview" 
+          options={{ tabBarLabel: 'Overview' }}
+        >
+          {() => <OverviewTab tournament={tournament} />}
+        </Tab.Screen>
+        <Tab.Screen 
+          name="Schedule" 
+          options={{ tabBarLabel: 'Schedule' }}
+        >
+          {() => <ScheduleTab tournamentId={tournamentId} />}
+        </Tab.Screen>
+        <Tab.Screen 
+          name="PoolsAndBrackets" 
+          options={{ tabBarLabel: 'Pools & Brackets' }}
+        >
+          {() => <PoolsAndBracketsTab tournamentId={tournamentId} />}
+        </Tab.Screen>
+        <Tab.Screen 
+          name="Standings" 
+          options={{ tabBarLabel: 'Standings' }}
+        >
+          {() => <StandingsTab tournamentId={tournamentId} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+    </TournamentProvider>
   );
 };
 

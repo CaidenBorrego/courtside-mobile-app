@@ -38,10 +38,48 @@ const SearchTeamsScreen: React.FC = () => {
 
         // Extract unique team names
         const teamNamesSet = new Set<string>();
+        const filteredOutTeams: string[] = []; // Debug: track filtered teams
+        
         allGames.forEach((game: Game) => {
-          teamNamesSet.add(game.teamA);
-          teamNamesSet.add(game.teamB);
+          // Filter out placeholder teams
+          const isPlaceholder = (teamName: string | null | undefined) => {
+            if (!teamName) return true;
+            const lowerName = teamName.toLowerCase().trim();
+            return (
+              lowerName === 'tbd' ||
+              lowerName === 'bye' ||
+              lowerName.startsWith('winner of') ||
+              lowerName.startsWith('loser of') ||
+              lowerName.startsWith('winner') ||
+              lowerName.startsWith('loser') ||
+              lowerName.includes('seed #') ||
+              lowerName.includes('seed#') ||
+              lowerName.startsWith('pool') ||
+              lowerName.match(/^[a-z]\s*seed\s*\d+$/i) || // "A Seed 1", "B Seed 2", etc.
+              lowerName.match(/^seed\s*\d+$/i) || // "Seed 1", "Seed 2", etc.
+              lowerName.match(/^\d+(st|nd|rd|th)\s+pool\s+[a-z]$/i) // "1st Pool A", "2nd Pool B", "3rd Pool C", etc.
+            );
+          };
+
+          if (game.teamA) {
+            if (!isPlaceholder(game.teamA)) {
+              teamNamesSet.add(game.teamA);
+            } else {
+              filteredOutTeams.push(game.teamA);
+            }
+          }
+          
+          if (game.teamB) {
+            if (!isPlaceholder(game.teamB)) {
+              teamNamesSet.add(game.teamB);
+            } else {
+              filteredOutTeams.push(game.teamB);
+            }
+          }
         });
+
+        console.log('🔍 Filtered out placeholder teams:', [...new Set(filteredOutTeams)]);
+        console.log('✅ Valid teams found:', Array.from(teamNamesSet));
 
         const teamNames = Array.from(teamNamesSet).sort();
         setAllTeams(teamNames);

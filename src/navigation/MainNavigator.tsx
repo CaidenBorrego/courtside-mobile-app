@@ -39,6 +39,9 @@ const MainNavigator: React.FC = () => {
         component={HomeScreen}
         options={{
           title: 'CourtSide',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
           tabBarLabel: 'Tournaments',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="basketball-outline" size={size} color={color} />
