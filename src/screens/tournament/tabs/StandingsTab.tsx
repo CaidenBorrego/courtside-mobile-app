@@ -65,9 +65,10 @@ const StandingsTab: React.FC<StandingsTabProps> = ({ tournamentId }) => {
 
   // Note: Standings are automatically updated via cache service when games change
 
-  const handleTeamPress = (teamName: string) => {
-    if (selectedDivisionId) {
-      navigation.navigate('TeamDetail', { teamName, divisionId: selectedDivisionId });
+  const handleTeamPress = (teamName: string, divisionId?: string) => {
+    const targetDivisionId = divisionId || selectedDivisionId;
+    if (targetDivisionId) {
+      navigation.navigate('TeamDetail', { teamName, divisionId: targetDivisionId });
     }
   };
 

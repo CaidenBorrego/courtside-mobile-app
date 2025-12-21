@@ -334,6 +334,7 @@ export type ProfileStackParamList = {
   ManageTeams: undefined;
   ManageGames: undefined;
   SearchTeams: undefined;
+  TeamDetail: { teamName: string; divisionId: string };
 };
 
 export type TournamentStackParamList = {
