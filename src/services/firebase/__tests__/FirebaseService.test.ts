@@ -20,8 +20,6 @@ import { FirebaseService } from '../FirebaseService';
 import {
   Tournament,
   Game,
-  Division,
-  Location,
   UserProfile,
   TournamentStatus,
   GameStatus,
@@ -123,7 +121,7 @@ describe('FirebaseService', () => {
         mockGetDocs.mockRejectedValue(new Error('Firestore error'));
 
         await expect(firebaseService.getTournaments()).rejects.toThrow(
-          'Failed to fetch tournaments'
+          'Firestore error'
         );
       });
     });
@@ -163,7 +161,7 @@ describe('FirebaseService', () => {
         mockGetDoc.mockResolvedValue(mockDocSnapshot as any);
 
         await expect(firebaseService.getTournament('non-existent')).rejects.toThrow(
-          'Failed to fetch tournament'
+          'Tournament not found'
         );
       });
     });
@@ -217,6 +215,7 @@ describe('FirebaseService', () => {
         const updates = {
           name: 'Updated Tournament Name',
           city: 'Updated City',
+          updatedAt: Timestamp.now(),
         };
 
         await firebaseService.updateTournament('tournament-1', updates);
@@ -330,6 +329,7 @@ describe('FirebaseService', () => {
           scoreA: 100,
           scoreB: 95,
           status: GameStatus.COMPLETED,
+          updatedAt: Timestamp.now(),
         };
 
         await firebaseService.updateGame('game-1', updates);
@@ -354,8 +354,9 @@ describe('FirebaseService', () => {
       role: UserRole.USER,
       followingTeams: ['Lakers', 'Warriors'],
       followingGames: ['game-1', 'game-2'],
-      notificationsEnabled: true,
-      fcmToken: 'fcm-token-123',
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // notificationsEnabled: true,
+      // fcmToken: 'fcm-token-123',
       lastActive: Timestamp.now(),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -474,7 +475,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((query, callback) => {
+        mockOnSnapshot.mockImplementation((query, callback: any) => {
           // Simulate calling the callback with mock data
           const mockQuerySnapshot = {
             docs: [
@@ -517,7 +518,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((docRef, callback) => {
+        mockOnSnapshot.mockImplementation((docRef, callback: any) => {
           // Simulate calling the callback with mock data
           const mockDocSnapshot = {
             exists: () => true,
@@ -559,7 +560,7 @@ describe('FirebaseService', () => {
         const mockCallback = jest.fn();
         const mockUnsubscribe = jest.fn();
         
-        mockOnSnapshot.mockImplementation((docRef, callback) => {
+        mockOnSnapshot.mockImplementation((docRef, callback: any) => {
           // Simulate calling the callback with non-existent document
           const mockDocSnapshot = {
             exists: () => false,

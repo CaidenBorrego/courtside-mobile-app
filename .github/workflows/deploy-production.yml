@@ -2,14 +2,14 @@ name: Deploy Production
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [master]
+    tags: ["v*"]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,8 +17,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
 
       - name: Setup Expo
         uses: expo/expo-github-action@v8
@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Run tests
         run: npm test -- --watchAll=false

@@ -1,17 +1,37 @@
 {
   "expo": {
-    "name": "courtside-mobile-app",
+    "name": "CourtSide",
     "slug": "courtside-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "courtsidemobileapp",
+    "scheme": "courtside",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "description": "Follow your favorite basketball tournaments, teams, and games with real-time updates and notifications.",
+    "primaryColor": "#1E88E5",
+    "privacy": "public",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.courtside.mobileapp",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "CourtSide needs your location to show nearby tournaments and provide directions to game venues.",
+        "NSUserTrackingUsageDescription": "This allows us to provide you with personalized tournament recommendations and improve your experience."
+      },
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
+      "package": "com.courtside.mobileapp",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -19,7 +39,25 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "_DISABLED_POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "_DISABLED_POST_NOTIFICATIONS",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -38,7 +76,18 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // [
+      //   "expo-notifications",
+      //   {
+      //     "icon": "./assets/images/icon.png",
+      //     "color": "#ffffff",
+      //     "sounds": [],
+      //     "mode": "production"
+      //   }
+      // ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -49,6 +98,12 @@
       "eas": {
         "projectId": "dfb2a363-c625-4c0b-93c7-e9043cd8a992"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/dfb2a363-c625-4c0b-93c7-e9043cd8a992"
     }
   }
 }

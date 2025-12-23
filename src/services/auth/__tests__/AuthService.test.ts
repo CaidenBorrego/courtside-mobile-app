@@ -209,7 +209,8 @@ describe('AuthService', () => {
         role: 'user',
         followingTeams: [],
         followingGames: [],
-        notificationsEnabled: true,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
       }));
     });
 

@@ -104,8 +104,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userCredential = await authService.signIn(email, password);
       const user = userCredential.user;
       
-      // Fetch user profile
-      const userProfile = await authService.getUserProfile(user.uid);
+      // Fetch user profile, create if it doesn't exist
+      let userProfile = await authService.getUserProfile(user.uid);
+      
+      if (!userProfile) {
+        // Profile doesn't exist, create it
+        await authService.createUserProfile(user);
+        userProfile = await authService.getUserProfile(user.uid);
+      }
       
       dispatch({ 
         type: 'AUTH_SUCCESS', 
@@ -188,7 +194,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (user) {
         try {
           // Fetch user profile when user is authenticated
-          const userProfile = await authService.getUserProfile(user.uid);
+          let userProfile = await authService.getUserProfile(user.uid);
+          
+          // If profile doesn't exist, create it
+          if (!userProfile) {
+            await authService.createUserProfile(user);
+            userProfile = await authService.getUserProfile(user.uid);
+          }
+          
           dispatch({ 
             type: 'AUTH_SUCCESS', 
             payload: { user, userProfile } 

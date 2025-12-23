@@ -4,6 +4,17 @@ export { default as HomeScreen } from './HomeScreen';
 // Auth screens
 export * from './auth';
 
-// Tournament screens - will be added in task 6
-// Game screens - will be added in task 7
-// Profile screens - will be added in task 8
+// Tournament screens
+export * from './tournament';
+
+// Game screens
+export * from './game';
+
+// Team screens
+export * from './team';
+
+// Profile screens
+export * from './profile';
+
+// Admin screens
+export * from './admin';

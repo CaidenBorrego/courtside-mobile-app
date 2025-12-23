@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop]
 
 jobs:
   test:
@@ -17,17 +17,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
+
+      - name: Clear Jest cache
+        run: npx jest --clearCache
 
       - name: Run linter
         run: npm run lint
 
       - name: Run type check
         run: npx tsc --noEmit
+
+      - name: Print Node / npm / Jest versions
+        run: |
+          node -v
+          npm -v
+          npx jest --version || echo "Jest not found via npx"
 
       - name: Run tests
         run: npm test -- --coverage --watchAll=false
@@ -49,11 +57,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: Run security audit
         run: npm audit --audit-level=high

@@ -1,0 +1,980 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  TouchableOpacity,
+  RefreshControl,
+} from 'react-native';
+import { Text, Switch, Divider, Card } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../../contexts/AuthContext';
+import { userProfileService } from '../../services/user/UserProfileService';
+import { firebaseService } from '../../services/firebase';
+import { Game, Division, ProfileStackParamList } from '../../types';
+import Button from '../../components/common/Button';
+import TeamImage from '../../components/common/TeamImage';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { cacheData, getCachedData } from '../../utils/cache';
+
+type ProfileScreenNavigationProp = StackNavigationProp<ProfileStackParamList, 'ProfileHome'>;
+
+const ProfileScreen: React.FC = () => {
+  const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const { user, userProfile, signOut, refreshUserProfile } = useAuth();
+  const [loading, setLoading] = useState(false);
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // const [notificationsEnabled, setNotificationsEnabled] = useState(
+  //   userProfile?.notificationsEnabled ?? true
+  // );
+  const [followedGamesData, setFollowedGamesData] = useState<Game[]>([]);
+  const [loadingGames, setLoadingGames] = useState(false);
+  const [teamDivisions, setTeamDivisions] = useState<Record<string, string>>({});
+  const [teamDivisionIds, setTeamDivisionIds] = useState<Record<string, string>>({});
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showAllGames, setShowAllGames] = useState(false);
+
+  // Refresh profile and sync team games when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      
+      const refresh = async () => {
+        if (user && isActive) {
+          await refreshUserProfile();
+          // Sync team games in the background (don't block UI)
+          userProfileService.syncTeamGames(user.uid).catch(error => {
+            console.error('Error syncing team games:', error);
+          });
+        }
+      };
+      
+      refresh();
+      
+      return () => {
+        isActive = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Empty deps - only run on focus/blur, not on every render
+  );
+
+  // Load followed games data with caching
+  const loadFollowedGames = useCallback(async (forceRefresh: boolean = false) => {
+    if (!user || !userProfile?.followingGames.length) {
+      setFollowedGamesData([]);
+      return;
+    }
+
+    const cacheKey = `followed_games_${user.uid}`;
+    
+    // Try to get cached data first if not forcing refresh
+    if (!forceRefresh) {
+      const cached = await getCachedData<any[]>(cacheKey);
+      if (cached) {
+        // Reconstruct Timestamp objects from cached data
+        const gamesWithTimestamps = cached.map(game => {
+          // Validate and reconstruct startTime
+          let startTime = game.startTime;
+          if (typeof game.startTime === 'string') {
+            const date = new Date(game.startTime);
+            if (!isNaN(date.getTime())) {
+              startTime = { 
+                toMillis: () => date.getTime(),
+                toDate: () => date
+              };
+            }
+          }
+          
+          // Validate and reconstruct updatedAt
+          let updatedAt = game.updatedAt;
+          if (typeof game.updatedAt === 'string') {
+            const date = new Date(game.updatedAt);
+            if (!isNaN(date.getTime())) {
+              updatedAt = {
+                toMillis: () => date.getTime(),
+                toDate: () => date
+              };
+            }
+          }
+          
+          return {
+            ...game,
+            startTime,
+            updatedAt,
+          };
+        });
+        setFollowedGamesData(gamesWithTimestamps as Game[]);
+        setLoadingGames(false);
+        return;
+      }
+    }
+
+    setLoadingGames(true);
+    try {
+      const gamesPromises = userProfile.followingGames.map(gameId =>
+        firebaseService.getGame(gameId).catch(() => null)
+      );
+      const games = await Promise.all(gamesPromises);
+      const validGames = games.filter((g): g is Game => g !== null);
+      
+      // Clean up orphaned game references if any games were not found
+      const foundGameIds = validGames.map(g => g.id);
+      const orphanedGameIds = userProfile.followingGames.filter(
+        id => !foundGameIds.includes(id)
+      );
+      
+      if (orphanedGameIds.length > 0 && user) {
+        console.log(`Cleaning up ${orphanedGameIds.length} orphaned game references`);
+        // Clean up in the background without blocking UI
+        userProfileService.cleanupOrphanedGames(user.uid).catch(error => {
+          console.error('Error cleaning up orphaned games:', error);
+        });
+      }
+      
+      // Sort games: in_progress > scheduled (by start time) > completed
+      const sortedGames = validGames.sort((a, b) => {
+        // Normalize status to lowercase and convert spaces to underscores
+        const normalizeStatus = (status: string) => {
+          return status.toLowerCase().replace(/\s+/g, '_');
+        };
+        
+        // Priority order: in_progress (1), scheduled (2), completed (3), cancelled (4)
+        const statusPriority: Record<string, number> = {
+          'in_progress': 1,
+          'scheduled': 2,
+          'completed': 3,
+          'cancelled': 4,
+        };
+        
+        const aStatus = normalizeStatus(a.status);
+        const bStatus = normalizeStatus(b.status);
+        
+        const aPriority = statusPriority[aStatus] || 5;
+        const bPriority = statusPriority[bStatus] || 5;
+        
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        
+        // If both are scheduled, sort by start time (earliest first)
+        if (a.status === 'scheduled' && b.status === 'scheduled') {
+          const aTime = a.startTime.toMillis ? a.startTime.toMillis() : 0;
+          const bTime = b.startTime.toMillis ? b.startTime.toMillis() : 0;
+          return aTime - bTime;
+        }
+        
+        return 0;
+      });
+      
+      setFollowedGamesData(sortedGames);
+      
+      // Convert Timestamps to ISO strings for caching
+      const serializableGames = sortedGames.map(game => ({
+        ...game,
+        startTime: game.startTime?.toDate ? game.startTime.toDate().toISOString() : game.startTime,
+        updatedAt: game.updatedAt?.toDate ? game.updatedAt.toDate().toISOString() : game.updatedAt,
+      }));
+      
+      // Cache the results for 15 minutes
+      await cacheData(cacheKey, serializableGames, { expiryMinutes: 15 });
+    } catch (error) {
+      console.error('Error loading followed games:', error);
+    } finally {
+      setLoadingGames(false);
+    }
+  }, [user, userProfile?.followingGames]);
+
+  useEffect(() => {
+    loadFollowedGames(false);
+  }, [loadFollowedGames]);
+
+  // Load division information for followed teams with caching
+  const loadTeamDivisions = useCallback(async (forceRefresh: boolean = false) => {
+    if (!user || !userProfile?.followingTeams.length) {
+      setTeamDivisions({});
+      setTeamDivisionIds({});
+      return;
+    }
+
+    const cacheKey = `team_divisions_${user.uid}`;
+    
+    // Try to get cached data first if not forcing refresh
+    if (!forceRefresh) {
+      const cached = await getCachedData<{ divisions: Record<string, string>; divisionIds: Record<string, string> }>(cacheKey);
+      if (cached && cached.divisions && cached.divisionIds) {
+        setTeamDivisions(cached.divisions);
+        setTeamDivisionIds(cached.divisionIds);
+        setLoadingTeams(false);
+        return;
+      }
+    }
+
+    setLoadingTeams(true);
+    try {
+      const divisionsMap: Record<string, string> = {};
+      const divisionIdsMap: Record<string, string> = {};
+      
+      // Get all tournaments to search for team games
+      const tournaments = await firebaseService.getTournaments();
+      
+      // For each team, find a game they're in and get the division
+      for (const teamName of userProfile.followingTeams) {
+        try {
+          let foundDivision = false;
+          
+          // Search through tournaments to find games with this team
+          for (const tournament of tournaments) {
+            if (foundDivision) break;
+            
+            const games = await firebaseService.getGamesByTournament(tournament.id);
+            const teamGame = games.find(
+              game => game.teamA === teamName || game.teamB === teamName
+            );
+            
+            if (teamGame) {
+              // Get the division for this game
+              const division = await firebaseService.getDivision(teamGame.divisionId);
+              if (division) {
+                divisionsMap[teamName] = division.name;
+                divisionIdsMap[teamName] = division.id;
+                foundDivision = true;
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error loading division for team ${teamName}:`, error);
+        }
+      }
+      
+      setTeamDivisions(divisionsMap);
+      setTeamDivisionIds(divisionIdsMap);
+      
+      // Cache the results for 5 minutes (divisions don't change often but should refresh reasonably)
+      await cacheData(cacheKey, { divisions: divisionsMap, divisionIds: divisionIdsMap }, { expiryMinutes: 5 });
+    } catch (error) {
+      console.error('Error loading team divisions:', error);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [user, userProfile?.followingTeams]);
+
+  useEffect(() => {
+    loadTeamDivisions(false);
+  }, [loadTeamDivisions]);
+
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // Sync notifications toggle with user profile
+  // useEffect(() => {
+  //   if (userProfile) {
+  //     setNotificationsEnabled(userProfile.notificationsEnabled);
+  //   }
+  // }, [userProfile]);
+
+  // Force refresh when following lists change (after follow/unfollow actions)
+  useEffect(() => {
+    if (userProfile && user) {
+      // Force refresh to immediately show changes
+      loadFollowedGames(true);
+      loadTeamDivisions(true);
+    }
+  }, [userProfile?.followingGames.length, userProfile?.followingTeams.length, user]);
+
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // const handleToggleNotifications = async (value: boolean) => {
+  //   if (!user) return;
+
+  //   setNotificationsEnabled(value);
+  //   setLoading(true);
+
+  //   try {
+  //     await userProfileService.toggleNotifications(user.uid, value);
+  //     await refreshUserProfile();
+  //     Alert.alert(
+  //       'Success',
+  //       `Notifications ${value ? 'enabled' : 'disabled'} successfully`
+  //     );
+  //   } catch (error) {
+  //     console.error('Error toggling notifications:', error);
+  //     setNotificationsEnabled(!value); // Revert on error
+  //     Alert.alert('Error', 'Failed to update notification preferences');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  const handleUnfollowTeam = async (teamName: string) => {
+    if (!user) return;
+
+    Alert.alert(
+      'Unfollow Team',
+      `Are you sure you want to unfollow ${teamName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unfollow',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await userProfileService.unfollowTeam(user.uid, teamName);
+              await refreshUserProfile();
+              Alert.alert('Success', `Unfollowed ${teamName}`);
+            } catch (error) {
+              console.error('Error unfollowing team:', error);
+              Alert.alert('Error', 'Failed to unfollow team');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleTeamPress = (teamName: string) => {
+    const divisionId = teamDivisionIds[teamName];
+    if (divisionId) {
+      navigation.navigate('TeamDetail', { teamName, divisionId });
+    }
+  };
+
+  const handleUnfollowGame = async (gameId: string, gameName: string) => {
+    if (!user) return;
+
+    Alert.alert(
+      'Unfollow Game',
+      `Are you sure you want to unfollow ${gameName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unfollow',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await userProfileService.unfollowGame(user.uid, gameId);
+              await refreshUserProfile();
+              Alert.alert('Success', `Unfollowed game`);
+            } catch (error) {
+              console.error('Error unfollowing game:', error);
+              Alert.alert('Error', 'Failed to unfollow game');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Refresh user profile
+      await refreshUserProfile();
+      
+      // Clean up orphaned games if user exists
+      if (user) {
+        try {
+          const result = await userProfileService.cleanupOrphanedGames(user.uid);
+          if (result.removed > 0) {
+            console.log(`Cleaned up ${result.removed} orphaned game references`);
+            // Refresh profile again to get updated following list
+            await refreshUserProfile();
+          }
+        } catch (error) {
+          console.error('Error cleaning up orphaned games:', error);
+        }
+      }
+      
+      // Force refresh followed games and team divisions
+      await Promise.all([
+        loadFollowedGames(true),
+        loadTeamDivisions(true),
+      ]);
+    } catch (error) {
+      console.error('Error refreshing profile data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (error) {
+            console.error('Error signing out:', error);
+            Alert.alert('Error', 'Failed to sign out');
+          }
+        },
+      },
+    ]);
+  };
+
+  if (!user || !userProfile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#000000" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          tintColor="#000000"
+        />
+      }
+    >
+      {/* User Information Section */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <View style={styles.userInfoContainer}>
+            <Text variant="headlineSmall" style={styles.displayName}>
+              {userProfile.displayName}
+            </Text>
+            <Text variant="bodyMedium" style={styles.email}>
+              {userProfile.email}
+            </Text>
+            <View style={styles.roleContainer}>
+              <Text variant="labelMedium" style={styles.roleText}>
+                {userProfile.role.toUpperCase()}
+              </Text>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+
+      {/* Notification Preferences Section - TEMPORARILY DISABLED */}
+      {/* 
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Notification Preferences
+          </Text>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text variant="bodyLarge">Push Notifications</Text>
+              <Text variant="bodySmall" style={styles.settingDescription}>
+                Receive notifications for followed games and teams
+              </Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={handleToggleNotifications}
+              disabled={loading}
+              color="#000000"
+            />
+          </View>
+        </Card.Content>
+      </Card>
+      */}
+
+      {/* Following Section - Combined */}
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Following
+          </Text>
+          
+          {/* Stats */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text variant="headlineMedium" style={styles.statNumber}>
+                {userProfile.followingTeams.length}
+              </Text>
+              <Text variant="bodyMedium" style={styles.statLabel}>
+                Teams
+              </Text>
+            </View>
+            <Divider style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text variant="headlineMedium" style={styles.statNumber}>
+                {userProfile.followingGames.length}
+              </Text>
+              <Text variant="bodyMedium" style={styles.statLabel}>
+                Games
+              </Text>
+            </View>
+          </View>
+
+          <Divider style={styles.sectionDivider} />
+
+          {/* Followed Teams Subsection */}
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.subsectionTitle}>
+              Followed Teams
+            </Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => navigation.navigate('SearchTeams')}
+            >
+              <Ionicons name="add-circle-outline" size={20} color="#000000" />
+              <Text style={styles.actionButtonText}>Find</Text>
+            </TouchableOpacity>
+          </View>
+          {userProfile.followingTeams.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="basketball-outline" size={48} color="#D1D5DB" />
+              <Text variant="bodyMedium" style={styles.emptyText}>
+                No teams followed yet
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyActionButton}
+                onPress={() => navigation.navigate('SearchTeams')}
+              >
+                <Text style={styles.emptyActionText}>Find Teams to Follow</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {loadingTeams ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator size="small" color="#000000" />
+                </View>
+              ) : (
+                <>
+                  {userProfile.followingTeams.map((team, index) => (
+                    <View key={`${team}-${index}`}>
+                      <View style={styles.listItem}>
+                        <TouchableOpacity
+                          style={styles.listItemContent}
+                          onPress={() => handleTeamPress(team)}
+                          activeOpacity={0.7}
+                        >
+                          <TeamImage teamName={team} size={40} />
+                          <View style={styles.teamInfo}>
+                            <Text variant="bodyLarge" style={styles.teamName}>
+                              {team}
+                            </Text>
+                            {teamDivisions[team] && (
+                              <Text variant="bodySmall" style={styles.teamDivision}>
+                                Division: {teamDivisions[team]}
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleUnfollowTeam(team)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} testID={`unfollow-team-${team}`}>
+                          <Ionicons name="close-circle-outline" size={24} color="#f44336" />
+                        </TouchableOpacity>
+                      </View>
+                      {index < userProfile.followingTeams.length - 1 && <Divider />}
+                    </View>
+                  ))}
+                </>
+              )}
+            </View>
+          )}
+
+          <Divider style={styles.sectionDivider} />
+
+          {/* Followed Games Subsection */}
+          <View style={styles.sectionHeader}>
+            <Text variant="titleMedium" style={styles.subsectionTitle}>
+              Followed Games
+            </Text>
+          </View>
+          {loadingGames ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color="#000000" />
+            </View>
+          ) : userProfile.followingGames.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons name="trophy-outline" size={48} color="#D1D5DB" />
+              <Text variant="bodyMedium" style={styles.emptyText}>
+                No games followed yet
+              </Text>
+              <Text variant="bodySmall" style={styles.emptyHint}>
+                Browse tournaments and games to follow them
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.listContainer}>
+              {(showAllGames ? followedGamesData : followedGamesData.slice(0, 5)).map((game, index, array) => {
+                const isScheduled = game.status === 'scheduled';
+                const isCompleted = game.status === 'completed';
+                const teamAWon = isCompleted && game.scoreA > game.scoreB;
+                const teamBWon = isCompleted && game.scoreB > game.scoreA;
+                
+                const formatTime = (timestamp: any) => {
+                  try {
+                    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                    return date.toLocaleString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric', 
+                      hour: 'numeric', 
+                      minute: '2-digit' 
+                    });
+                  } catch {
+                    return 'Time TBD';
+                  }
+                };
+                
+                const getStatusLabel = (status: string) => {
+                  switch (status) {
+                    case 'in_progress':
+                      return 'LIVE';
+                    case 'scheduled':
+                      return 'SCHEDULED';
+                    case 'completed':
+                      return 'FINAL';
+                    case 'cancelled':
+                      return 'CANCELLED';
+                    default:
+                      return status.toUpperCase();
+                  }
+                };
+
+                return (
+                  <View key={game.id}>
+                    <TouchableOpacity
+                      style={styles.listItem}
+                      onPress={() =>
+                        handleUnfollowGame(game.id, `${game.teamA} vs ${game.teamB}`)
+                      }
+                    >
+                      <View style={styles.listItemContent}>
+                        <View style={styles.gameInfo}>
+                          <View style={styles.gameHeader}>
+                            <View style={styles.gameTeamsContainer}>
+                              <Text 
+                                variant="bodyMedium" 
+                                style={[
+                                  styles.gameTeamName,
+                                  teamAWon && styles.winnerTeamName,
+                                  teamBWon && styles.loserTeamName,
+                                ]}
+                              >
+                                {game.teamA}
+                              </Text>
+                              <Text variant="bodyMedium" style={styles.vsText}> vs </Text>
+                              <Text 
+                                variant="bodyMedium" 
+                                style={[
+                                  styles.gameTeamName,
+                                  teamBWon && styles.winnerTeamName,
+                                  teamAWon && styles.loserTeamName,
+                                ]}
+                              >
+                                {game.teamB}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={styles.gameFooter}>
+                            <Text variant="bodySmall" style={styles.gameScore}>
+                              {isScheduled ? formatTime(game.startTime) : `${game.scoreA} - ${game.scoreB}`}
+                            </Text>
+                            {game.court && (
+                              <Text variant="bodySmall" style={styles.courtLabel}>
+                                • {game.court}
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+                        <View style={styles.statusBadge}>
+                          <Text style={styles.statusText}>
+                            {getStatusLabel(game.status)}
+                          </Text>
+                        </View>
+                      </View>
+                      <Ionicons name="close-circle-outline" size={24} color="#f44336" />
+                    </TouchableOpacity>
+                    {index < array.length - 1 && <Divider />}
+                  </View>
+                );
+              })}
+              {followedGamesData.length > 5 && (
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => setShowAllGames(!showAllGames)}
+                >
+                  <Text style={styles.viewAllText}>
+                    {showAllGames ? 'Show less' : `View all ${followedGamesData.length} games`}
+                  </Text>
+                  <Ionicons 
+                    name={showAllGames ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#000000" 
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Sign Out Button */}
+      <View style={styles.signOutContainer}>
+        <Button
+          title="Sign Out"
+          onPress={handleSignOut}
+          mode="outlined"
+        />
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  contentContainer: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#6B7280',
+  },
+  card: {
+    marginBottom: 16,
+    elevation: 2,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+  },
+  userInfoContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  displayName: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  email: {
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  roleContainer: {
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  roleText: {
+    color: '#000000',
+    fontWeight: 'bold',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 4,
+  },
+  subsectionTitle: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  sectionDivider: {
+    marginVertical: 20,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  actionButtonText: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  settingInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  settingDescription: {
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+  statLabel: {
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    color: '#6B7280',
+    marginTop: 8,
+  },
+  emptyHint: {
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontSize: 12,
+  },
+  emptyActionButton: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#000000',
+    borderRadius: 8,
+  },
+  emptyActionText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  viewAllText: {
+    color: '#000000',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  loadingState: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  listContainer: {
+    marginTop: 8,
+  },
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  listItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 12,
+  },
+  listItemText: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  teamInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  teamName: {
+    fontWeight: '500',
+  },
+  teamDivision: {
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  gameInfo: {
+    flex: 1,
+  },
+  gameHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  gameTeamsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  gameTeams: {
+    flex: 1,
+    fontWeight: '500',
+  },
+  gameTeamName: {
+    fontWeight: '500',
+  },
+  winnerTeamName: {
+    fontWeight: '700',
+    color: '#000000',
+  },
+  loserTeamName: {
+    color: '#9CA3AF',
+  },
+  vsText: {
+    color: '#6B7280',
+    fontWeight: '400',
+  },
+  statusBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 12,
+    alignSelf: 'center',
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6B7280',
+    letterSpacing: 0.5,
+  },
+  gameFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 2,
+  },
+  gameScore: {
+    color: '#6B7280',
+  },
+  courtLabel: {
+    color: '#6B7280',
+  },
+  signOutContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+});
+
+export default ProfileScreen;

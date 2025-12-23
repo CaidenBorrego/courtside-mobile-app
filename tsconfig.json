@@ -23,5 +23,10 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "functions",
+    "src/__tests__/e2e/**/*"
   ]
 }

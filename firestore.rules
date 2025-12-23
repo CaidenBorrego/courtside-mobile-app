@@ -2,8 +2,108 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user role
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+    
+    // Helper function to check if user is admin or scorekeeper
+    function isAdminOrScorekeeper() {
+      return isAuthenticated() && getUserRole() in ['admin', 'scorekeeper'];
+    }
+    
+    // Helper function to validate advancement arrays
+    function hasValidAdvancementArrays() {
+      return (!('winnerAdvancesTo' in request.resource.data) || 
+              (request.resource.data.winnerAdvancesTo is list && 
+               request.resource.data.winnerAdvancesTo.size() <= 10)) &&
+             (!('loserAdvancesTo' in request.resource.data) || 
+              (request.resource.data.loserAdvancesTo is list && 
+               request.resource.data.loserAdvancesTo.size() <= 10));
+    }
+    
+    // Helper function to check if advancement fields are being modified
+    function isModifyingAdvancement() {
+      return ('winnerAdvancesTo' in request.resource.data && 
+              request.resource.data.winnerAdvancesTo != resource.data.winnerAdvancesTo) ||
+             ('loserAdvancesTo' in request.resource.data && 
+              request.resource.data.loserAdvancesTo != resource.data.loserAdvancesTo) ||
+             ('winnerFeedsIntoGame' in request.resource.data && 
+              request.resource.data.winnerFeedsIntoGame != resource.data.winnerFeedsIntoGame) ||
+             ('loserFeedsIntoGame' in request.resource.data && 
+              request.resource.data.loserFeedsIntoGame != resource.data.loserFeedsIntoGame) ||
+             ('feedsIntoGame' in request.resource.data && 
+              request.resource.data.feedsIntoGame != resource.data.feedsIntoGame);
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAuthenticated() && 
+                      (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Tournaments collection
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper();
+      allow update: if isAdminOrScorekeeper();
+      allow delete: if isAdmin();
+    }
+    
+    // Divisions collection
+    match /divisions/{divisionId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper();
+      allow update: if isAdminOrScorekeeper();
+      allow delete: if isAdmin();
+    }
+    
+    // Games collection with advancement validation
+    match /games/{gameId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper() && hasValidAdvancementArrays();
+      allow update: if isAdminOrScorekeeper() && 
+                      hasValidAdvancementArrays() &&
+                      // Only admins can modify advancement fields
+                      (!isModifyingAdvancement() || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Locations collection
+    match /locations/{locationId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper();
+      allow update: if isAdminOrScorekeeper();
+      allow delete: if isAdmin();
+    }
+    
+    // Pools collection
+    match /pools/{poolId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper();
+      allow update: if isAdminOrScorekeeper();
+      allow delete: if isAdmin();
+    }
+    
+    // Brackets collection
+    match /brackets/{bracketId} {
+      allow read: if true;
+      allow create: if isAdminOrScorekeeper();
+      allow update: if isAdminOrScorekeeper();
+      allow delete: if isAdmin();
     }
   }
 }

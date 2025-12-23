@@ -1,38 +1,185 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { NavigationContainer, NavigationState } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigation } from '../contexts/NavigationContext';
+import { saveNavigationState, loadNavigationState } from '../utils/navigationPersistence';
+import linking from './linking';
 import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
+import { TournamentDetailScreen } from '../screens/tournament';
+import { GameDetailScreen } from '../screens/game';
+import { TeamDetailScreen } from '../screens/team';
+import { ManageTournamentScreen, BulkImportScreen, EditGameScreen, EditTournamentScreen } from '../screens/admin';
 import { RootStackParamList } from '../types';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator: React.FC = () => {
   const { isAuthenticated, loading } = useAuth();
+  const { navigationRef } = useNavigation();
+  const [isReady, setIsReady] = useState(false);
+  const [initialState, setInitialState] = useState<NavigationState | undefined>();
 
-  // Show loading screen while checking auth state
-  if (loading) {
+  // Load persisted navigation state on mount
+  useEffect(() => {
+    const restoreState = async () => {
+      try {
+        const savedState = await loadNavigationState();
+        if (savedState) {
+          setInitialState(savedState);
+        }
+      } catch (error) {
+        console.error('Error restoring navigation state:', error);
+      } finally {
+        setIsReady(true);
+      }
+    };
+
+    if (!isReady) {
+      restoreState();
+    }
+  }, [isReady]);
+
+  // Show loading screen while checking auth state or restoring navigation
+  if (loading || !isReady) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6200ee" />
+        <ActivityIndicator size="large" color="#000000" />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      initialState={initialState}
+      onStateChange={(state) => {
+        // Persist navigation state on change
+        saveNavigationState(state);
+      }}
+    >
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
         }}
       >
         {isAuthenticated ? (
-          <Stack.Screen 
-            name="Main" 
-            component={MainNavigator}
-          />
+          <>
+            <Stack.Screen 
+              name="Main" 
+              component={MainNavigator}
+            />
+            {/* Nested navigation for tournament and game details */}
+            <Stack.Screen 
+              name="TournamentDetail" 
+              component={TournamentDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Tournament Details',
+                headerBackTitle: 'Home',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="GameDetail" 
+              component={GameDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Game Details',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="TeamDetail" 
+              component={TeamDetailScreen}
+              options={{
+                headerShown: true,
+                title: 'Team Details',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="ManageTournament" 
+              component={ManageTournamentScreen}
+              options={{
+                headerShown: true,
+                title: 'Manage Tournament',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="BulkImport" 
+              component={BulkImportScreen}
+              options={{
+                headerShown: true,
+                title: 'Bulk Import',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="EditGame" 
+              component={EditGameScreen}
+              options={{
+                headerShown: true,
+                title: 'Edit Game',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+            <Stack.Screen 
+              name="EditTournament" 
+              component={EditTournamentScreen}
+              options={{
+                headerShown: true,
+                title: 'Edit Tournament',
+                headerStyle: {
+                  backgroundColor: '#000000',
+                },
+                headerTintColor: '#fff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+          </>
         ) : (
           <Stack.Screen 
             name="Auth" 
@@ -49,7 +196,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#FFFFFF',
   },
 });
 

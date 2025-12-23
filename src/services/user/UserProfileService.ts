@@ -25,8 +25,9 @@ export class UserProfileService {
         role: UserRole.USER,
         followingTeams: [],
         followingGames: [],
-        notificationsEnabled: true,
-        fcmToken,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
+        // fcmToken,
         lastActive: Timestamp.now(),
         createdAt: Timestamp.now(),
       };
@@ -69,18 +70,6 @@ export class UserProfileService {
   }
 
   /**
-   * Updates user's FCM token for push notifications
-   */
-  async updateFCMToken(uid: string, fcmToken: string): Promise<void> {
-    try {
-      await this.updateUserProfile(uid, { fcmToken });
-    } catch (error) {
-      console.error('Error updating FCM token:', error);
-      throw new Error('Failed to update FCM token');
-    }
-  }
-
-  /**
    * Updates user's last active timestamp
    */
   async updateLastActive(uid: string): Promise<void> {
@@ -92,22 +81,36 @@ export class UserProfileService {
     }
   }
 
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  /**
+   * Updates user's FCM token for push notifications
+   */
+  // async updateFCMToken(uid: string, fcmToken: string): Promise<void> {
+  //   try {
+  //     await this.updateUserProfile(uid, { fcmToken });
+  //   } catch (error) {
+  //     console.error('Error updating FCM token:', error);
+  //     throw new Error('Failed to update FCM token');
+  //   }
+  // }
+
   /**
    * Toggles notification preferences for user
    */
-  async toggleNotifications(uid: string, enabled: boolean): Promise<void> {
-    try {
-      await this.updateUserProfile(uid, { notificationsEnabled: enabled });
-    } catch (error) {
-      console.error('Error toggling notifications:', error);
-      throw new Error('Failed to toggle notifications');
-    }
-  }
+  // async toggleNotifications(uid: string, enabled: boolean): Promise<void> {
+  //   try {
+  //     await this.updateUserProfile(uid, { notificationsEnabled: enabled });
+  //   } catch (error) {
+  //     console.error('Error toggling notifications:', error);
+  //     throw new Error('Failed to toggle notifications');
+  //   }
+  // }
 
   // Following/Unfollowing functionality
 
   /**
    * Follows a team - adds team name to user's followingTeams array
+   * Also automatically follows all games involving this team
    */
   async followTeam(uid: string, teamName: string): Promise<void> {
     try {
@@ -117,7 +120,33 @@ export class UserProfileService {
         throw new Error('Already following this team');
       }
 
+      // Follow the team
       await firebaseService.followTeam(uid, teamName);
+
+      // Get all games involving this team across all tournaments
+      const tournaments = await firebaseService.getActiveTournaments();
+      const allGamesPromises = tournaments.map(tournament =>
+        firebaseService.getGamesByTournament(tournament.id)
+      );
+      const allGamesArrays = await Promise.all(allGamesPromises);
+      const allGames = allGamesArrays.flat();
+
+      // Filter games where this team is playing
+      const teamGames = allGames.filter(
+        game => game.teamA === teamName || game.teamB === teamName
+      );
+
+      // Follow all games for this team (that aren't already followed)
+      const gameIdsToFollow = teamGames
+        .map(game => game.id)
+        .filter(gameId => !profile.followingGames.includes(gameId));
+
+      if (gameIdsToFollow.length > 0) {
+        // Add all game IDs at once
+        for (const gameId of gameIdsToFollow) {
+          await firebaseService.followGame(uid, gameId);
+        }
+      }
     } catch (error) {
       console.error('Error following team:', error);
       if (error instanceof Error && error.message === 'Already following this team') {
@@ -129,6 +158,8 @@ export class UserProfileService {
 
   /**
    * Unfollows a team - removes team name from user's followingTeams array
+   * Also automatically unfollows all games involving only this team
+   * (keeps games if user follows the other team in the game)
    */
   async unfollowTeam(uid: string, teamName: string): Promise<void> {
     try {
@@ -138,7 +169,41 @@ export class UserProfileService {
         throw new Error('Not following this team');
       }
 
+      // Unfollow the team
       await firebaseService.unfollowTeam(uid, teamName);
+
+      // Get all games involving this team
+      const tournaments = await firebaseService.getActiveTournaments();
+      const allGamesPromises = tournaments.map(tournament =>
+        firebaseService.getGamesByTournament(tournament.id)
+      );
+      const allGamesArrays = await Promise.all(allGamesPromises);
+      const allGames = allGamesArrays.flat();
+
+      // Filter games where this team is playing
+      const teamGames = allGames.filter(
+        game => game.teamA === teamName || game.teamB === teamName
+      );
+
+      // Get updated profile to check remaining followed teams
+      const updatedProfile = await this.getUserProfile(uid);
+      const remainingFollowedTeams = updatedProfile.followingTeams;
+
+      // Unfollow games where this was the only followed team
+      const gameIdsToUnfollow = teamGames
+        .filter(game => {
+          // Check if user follows the other team in this game
+          const otherTeam = game.teamA === teamName ? game.teamB : game.teamA;
+          return !remainingFollowedTeams.includes(otherTeam);
+        })
+        .map(game => game.id)
+        .filter(gameId => updatedProfile.followingGames.includes(gameId));
+
+      if (gameIdsToUnfollow.length > 0) {
+        for (const gameId of gameIdsToUnfollow) {
+          await firebaseService.unfollowGame(uid, gameId);
+        }
+      }
     } catch (error) {
       console.error('Error unfollowing team:', error);
       if (error instanceof Error && error.message === 'Not following this team') {
@@ -150,6 +215,7 @@ export class UserProfileService {
 
   /**
    * Follows a game - adds game ID to user's followingGames array
+   * Note: Does NOT automatically follow teams (teams follow games, not vice versa)
    */
   async followGame(uid: string, gameId: string): Promise<void> {
     try {
@@ -171,6 +237,7 @@ export class UserProfileService {
 
   /**
    * Unfollows a game - removes game ID from user's followingGames array
+   * Note: Does NOT automatically unfollow teams
    */
   async unfollowGame(uid: string, gameId: string): Promise<void> {
     try {
@@ -320,6 +387,101 @@ export class UserProfileService {
         gamesCount: 0,
         totalCount: 0
       };
+    }
+  }
+
+  /**
+   * Syncs followed teams with their games
+   * Automatically follows any new games for followed teams
+   * Should be called periodically or when user opens the app
+   */
+  async syncTeamGames(uid: string): Promise<{ added: number; skipped: number }> {
+    try {
+      const profile = await this.getUserProfile(uid);
+      
+      if (profile.followingTeams.length === 0) {
+        return { added: 0, skipped: 0 };
+      }
+
+      // Get all games across all tournaments
+      const tournaments = await firebaseService.getActiveTournaments();
+      const allGamesPromises = tournaments.map(tournament =>
+        firebaseService.getGamesByTournament(tournament.id)
+      );
+      const allGamesArrays = await Promise.all(allGamesPromises);
+      const allGames = allGamesArrays.flat();
+
+      // Find games involving followed teams that aren't already followed
+      const gamesToFollow = allGames.filter(game => {
+        const involvesFollowedTeam = 
+          profile.followingTeams.includes(game.teamA) || 
+          profile.followingTeams.includes(game.teamB);
+        const notAlreadyFollowed = !profile.followingGames.includes(game.id);
+        return involvesFollowedTeam && notAlreadyFollowed;
+      });
+
+      // Follow all new games
+      let added = 0;
+      for (const game of gamesToFollow) {
+        try {
+          await firebaseService.followGame(uid, game.id);
+          added++;
+        } catch (error) {
+          console.error(`Error following game ${game.id}:`, error);
+        }
+      }
+
+      return { 
+        added, 
+        skipped: allGames.length - gamesToFollow.length 
+      };
+    } catch (error) {
+      console.error('Error syncing team games:', error);
+      throw new Error('Failed to sync team games');
+    }
+  }
+
+  /**
+   * Cleans up orphaned game references from user's following list
+   * Removes game IDs that no longer exist in the database
+   * Should be called when "game not found" errors occur
+   */
+  async cleanupOrphanedGames(uid: string): Promise<{ removed: number; remaining: number }> {
+    try {
+      const profile = await this.getUserProfile(uid);
+      
+      if (profile.followingGames.length === 0) {
+        return { removed: 0, remaining: 0 };
+      }
+
+      // Check each game to see if it still exists
+      const validGameIds: string[] = [];
+      const orphanedGameIds: string[] = [];
+
+      for (const gameId of profile.followingGames) {
+        try {
+          await firebaseService.getGame(gameId);
+          validGameIds.push(gameId);
+        } catch {
+          // Game doesn't exist, mark as orphaned
+          orphanedGameIds.push(gameId);
+        }
+      }
+
+      // Update user profile with only valid game IDs
+      if (orphanedGameIds.length > 0) {
+        await this.updateUserProfile(uid, {
+          followingGames: validGameIds
+        });
+      }
+
+      return { 
+        removed: orphanedGameIds.length, 
+        remaining: validGameIds.length 
+      };
+    } catch (error) {
+      console.error('Error cleaning up orphaned games:', error);
+      throw new Error('Failed to cleanup orphaned games');
     }
   }
 
