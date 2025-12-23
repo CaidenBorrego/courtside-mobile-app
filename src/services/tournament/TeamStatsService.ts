@@ -124,17 +124,9 @@ export class TeamStatsService {
    * @param useCache - Whether to use cached data (default: true)
    * @returns Array of team statistics sorted by rank
    */
-  async getDivisionStandings(divisionId: string, useCache: boolean = true): Promise<TeamStats[]> {
+  async getDivisionStandings(divisionId: string, useCache: boolean = false): Promise<TeamStats[]> {
     try {
-      // Check cache first
-      if (useCache) {
-        const cacheKey = CacheKeys.DIVISION_STANDINGS(divisionId);
-        const cached = await getCachedData<TeamStats[]>(cacheKey);
-        if (cached) {
-          return cached;
-        }
-      }
-
+      // Always fetch fresh data - no caching
       // Fetch all games in the division
       const q = query(
         this.gamesCollection,
@@ -207,10 +199,69 @@ export class TeamStatsService {
         }
       });
 
-      // Convert to array and sort
+      // Convert to array
       const standings = Array.from(standingsMap.values());
       
+      // Fetch pools and brackets to identify consolidation teams
+      const poolsQuery = query(
+        collection(db, 'pools'),
+        where('divisionId', '==', divisionId)
+      );
+      const bracketsQuery = query(
+        collection(db, 'brackets'),
+        where('divisionId', '==', divisionId)
+      );
+      
+      const [poolsSnapshot, bracketsSnapshot] = await Promise.all([
+        getDocs(poolsQuery),
+        getDocs(bracketsQuery)
+      ]);
+      
+      // Find consolidation pool/bracket IDs
+      const consolidationIds = new Set<string>();
+      
+      poolsSnapshot.docs.forEach(doc => {
+        const pool = doc.data();
+        if (pool.name?.toLowerCase().includes('consolation')) {
+          consolidationIds.add(doc.id);
+        }
+      });
+      
+      bracketsSnapshot.docs.forEach(doc => {
+        const bracket = doc.data();
+        if (bracket.name?.toLowerCase().includes('consolation')) {
+          consolidationIds.add(doc.id);
+        }
+      });
+      
+      // Determine which teams are in consolidation brackets/pools
+      const consolidationTeams = new Set<string>();
+      
+      games.forEach(game => {
+        const isConsolidation = 
+          (game.poolId && consolidationIds.has(game.poolId)) ||
+          (game.bracketId && consolidationIds.has(game.bracketId));
+        
+        if (isConsolidation) {
+          if (game.teamA && !isPlaceholderTeam(game.teamA)) {
+            consolidationTeams.add(game.teamA);
+          }
+          if (game.teamB && !isPlaceholderTeam(game.teamB)) {
+            consolidationTeams.add(game.teamB);
+          }
+        }
+      });
+      
+      // Sort with consolidation teams always ranked lower
       standings.sort((a, b) => {
+        const aIsConsolidation = consolidationTeams.has(a.teamName);
+        const bIsConsolidation = consolidationTeams.has(b.teamName);
+        
+        // Championship bracket teams always rank above consolidation teams
+        if (aIsConsolidation && !bIsConsolidation) return 1;
+        if (!aIsConsolidation && bIsConsolidation) return -1;
+        
+        // Within same bracket type, sort by record
         // First by wins (descending)
         if (b.wins !== a.wins) {
           return b.wins - a.wins;
@@ -224,11 +275,8 @@ export class TeamStatsService {
         standing.rank = index + 1;
       });
 
-      // Cache the result
-      const cacheKey = CacheKeys.DIVISION_STANDINGS(divisionId);
-      await cacheData(cacheKey, standings, { expiryMinutes: this.CACHE_EXPIRY_MINUTES });
-
-      return standings;
+      // Return fresh data - no caching
+      return standings;      return standings;
     } catch (error) {
       console.error('Error getting division standings:', error);
       throw error instanceof Error ? error : new Error('Failed to get division standings');

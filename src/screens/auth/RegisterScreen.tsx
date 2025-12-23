@@ -5,18 +5,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import {
   Text,
   TextInput,
-  Button,
-  Card,
-  Title,
-  Paragraph,
   HelperText,
 } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, validatePassword } from '../../utils';
+import { useTheme } from '../../hooks/useTheme';
 
 interface RegisterScreenProps {
   navigation: any;
@@ -24,6 +23,7 @@ interface RegisterScreenProps {
 
 const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
   const { signUp, loading, error, clearError } = useAuth();
+  const { colors } = useTheme();
 
   const [formData, setFormData] = useState({
     displayName: '',
@@ -120,123 +120,147 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
-          <Card style={styles.card}>
-            <Card.Content>
-              <Title style={styles.title}>Create Account</Title>
-              <Paragraph style={styles.subtitle}>
-                Join CourtSide to follow your favorite teams
-              </Paragraph>
+          {/* Logo/Icon Section */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.text }]}>
+              <Ionicons name="basketball" size={48} color={colors.background} />
+            </View>
+            <Text style={[styles.appName, { color: colors.text }]}>CourtSide</Text>
+          </View>
 
-              {/* Display Name Input */}
-              <TextInput
-                label="Display Name"
-                value={formData.displayName}
-                onChangeText={(value) => handleInputChange('displayName', value)}
-                mode="outlined"
-                autoCapitalize="words"
-                autoComplete="name"
-                error={!!formErrors.displayName}
-                style={styles.input}
-                disabled={loading}
-              />
-              <HelperText type="error" visible={!!formErrors.displayName}>
-                {formErrors.displayName}
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Join CourtSide to follow your favorite teams
+            </Text>
+
+            {/* Display Name Input */}
+            <TextInput
+              label="Display Name"
+              value={formData.displayName}
+              onChangeText={(value) => handleInputChange('displayName', value)}
+              mode="outlined"
+              autoCapitalize="words"
+              autoComplete="name"
+              error={!!formErrors.displayName}
+              style={styles.input}
+              disabled={loading}
+              outlineColor={colors.border}
+              activeOutlineColor={colors.text}
+              textColor={colors.text}
+            />
+            <HelperText type="error" visible={!!formErrors.displayName}>
+              {formErrors.displayName}
+            </HelperText>
+
+            {/* Email Input */}
+            <TextInput
+              label="Email"
+              value={formData.email}
+              onChangeText={(value) => handleInputChange('email', value)}
+              mode="outlined"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              error={!!formErrors.email}
+              style={styles.input}
+              disabled={loading}
+              outlineColor={colors.border}
+              activeOutlineColor={colors.text}
+              textColor={colors.text}
+            />
+            <HelperText type="error" visible={!!formErrors.email}>
+              {formErrors.email}
+            </HelperText>
+
+            {/* Password Input */}
+            <TextInput
+              label="Password"
+              value={formData.password}
+              onChangeText={(value) => handleInputChange('password', value)}
+              mode="outlined"
+              secureTextEntry={!showPassword}
+              right={
+                <TextInput.Icon
+                  icon={showPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowPassword(!showPassword)}
+                />
+              }
+              error={!!formErrors.password}
+              style={styles.input}
+              disabled={loading}
+              outlineColor={colors.border}
+              activeOutlineColor={colors.text}
+              textColor={colors.text}
+            />
+            <HelperText type="error" visible={!!formErrors.password}>
+              {formErrors.password}
+            </HelperText>
+
+            {/* Confirm Password Input */}
+            <TextInput
+              label="Confirm Password"
+              value={formData.confirmPassword}
+              onChangeText={(value) => handleInputChange('confirmPassword', value)}
+              mode="outlined"
+              secureTextEntry={!showConfirmPassword}
+              right={
+                <TextInput.Icon
+                  icon={showConfirmPassword ? 'eye-off' : 'eye'}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                />
+              }
+              error={!!formErrors.confirmPassword}
+              style={styles.input}
+              disabled={loading}
+              outlineColor={colors.border}
+              activeOutlineColor={colors.text}
+              textColor={colors.text}
+            />
+            <HelperText type="error" visible={!!formErrors.confirmPassword}>
+              {formErrors.confirmPassword}
+            </HelperText>
+
+            {/* Auth Error */}
+            {error && (
+              <HelperText type="error" visible={true} style={styles.authError}>
+                {error}
               </HelperText>
+            )}
 
-              {/* Email Input */}
-              <TextInput
-                label="Email"
-                value={formData.email}
-                onChangeText={(value) => handleInputChange('email', value)}
-                mode="outlined"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                error={!!formErrors.email}
-                style={styles.input}
-                disabled={loading}
-              />
-              <HelperText type="error" visible={!!formErrors.email}>
-                {formErrors.email}
-              </HelperText>
-
-              {/* Password Input */}
-              <TextInput
-                label="Password"
-                value={formData.password}
-                onChangeText={(value) => handleInputChange('password', value)}
-                mode="outlined"
-                secureTextEntry={!showPassword}
-                right={
-                  <TextInput.Icon
-                    icon={showPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowPassword(!showPassword)}
-                  />
-                }
-                error={!!formErrors.password}
-                style={styles.input}
-                disabled={loading}
-              />
-              <HelperText type="error" visible={!!formErrors.password}>
-                {formErrors.password}
-              </HelperText>
-
-              {/* Confirm Password Input */}
-              <TextInput
-                label="Confirm Password"
-                value={formData.confirmPassword}
-                onChangeText={(value) => handleInputChange('confirmPassword', value)}
-                mode="outlined"
-                secureTextEntry={!showConfirmPassword}
-                right={
-                  <TextInput.Icon
-                    icon={showConfirmPassword ? 'eye-off' : 'eye'}
-                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-                  />
-                }
-                error={!!formErrors.confirmPassword}
-                style={styles.input}
-                disabled={loading}
-              />
-              <HelperText type="error" visible={!!formErrors.confirmPassword}>
-                {formErrors.confirmPassword}
-              </HelperText>
-
-              {/* Auth Error */}
-              {error && (
-                <HelperText type="error" visible={true} style={styles.authError}>
-                  {error}
-                </HelperText>
-              )}
-
-              {/* Register Button */}
-              <Button
-                mode="contained"
-                onPress={handleRegister}
-                style={styles.registerButton}
-                disabled={loading}
-                loading={loading}
-              >
+            {/* Register Button */}
+            <TouchableOpacity
+              onPress={handleRegister}
+              disabled={loading}
+              style={[styles.registerButton, { backgroundColor: colors.text, opacity: loading ? 0.6 : 1 }]}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.registerButtonText, { color: colors.background }]}>
                 {loading ? 'Creating Account...' : 'Sign Up'}
-              </Button>
+              </Text>
+            </TouchableOpacity>
 
-              {/* Login Link */}
-              <View style={styles.loginContainer}>
-                <Text style={styles.loginText}>Already have an account? </Text>
-                <Button mode="text" onPress={navigateToLogin} disabled={loading} compact>
+            {/* Login Link */}
+            <View style={styles.loginContainer}>
+              <Text style={[styles.loginText, { color: colors.textSecondary }]}>
+                Already have an account?{' '}
+              </Text>
+              <TouchableOpacity onPress={navigateToLogin} disabled={loading}>
+                <Text style={[styles.loginLink, { color: colors.text }]}>
                   Sign In
-                </Button>
-              </View>
-            </Card.Content>
-          </Card>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -246,52 +270,95 @@ const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   card: {
-    elevation: 4,
-    borderRadius: 12,
+    borderRadius: 16,
+    padding: 28,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   title: {
     textAlign: 'center',
     marginBottom: 8,
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '700',
   },
   subtitle: {
     textAlign: 'center',
     marginBottom: 24,
-    opacity: 0.7,
+    fontSize: 15,
+    lineHeight: 22,
   },
   input: {
     marginBottom: 4,
+    backgroundColor: 'transparent',
   },
   authError: {
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    marginTop: 8,
   },
   registerButton: {
-    marginTop: 16,
-    marginBottom: 16,
-    paddingVertical: 4,
+    marginTop: 24,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  registerButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
   },
   loginText: {
-    fontSize: 14,
-    opacity: 0.7,
+    fontSize: 15,
+  },
+  loginLink: {
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

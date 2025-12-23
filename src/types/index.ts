@@ -119,9 +119,15 @@ export interface Division extends FirestoreDocument {
  * @property bracketRound - Optional round name (e.g., "Finals", "Semifinals", "Round 1")
  * @property bracketPosition - Optional position within the round
  * @property dependsOnGames - Optional array of game IDs that must complete before this game
- * @property feedsIntoGame - DEPRECATED: Use winnerFeedsIntoGame instead
- * @property winnerFeedsIntoGame - Optional game ID that the winner advances to
- * @property loserFeedsIntoGame - Optional game ID that the loser advances to (for consolation/double-elimination)
+ * 
+ * Advancement fields (DEPRECATED - single game):
+ * @property feedsIntoGame - DEPRECATED: Use winnerAdvancesTo array instead
+ * @property winnerFeedsIntoGame - DEPRECATED: Use winnerAdvancesTo array instead
+ * @property loserFeedsIntoGame - DEPRECATED: Use loserAdvancesTo array instead
+ * 
+ * Advancement fields (NEW - multiple games):
+ * @property winnerAdvancesTo - Array of game IDs that the winner advances to (max 10)
+ * @property loserAdvancesTo - Array of game IDs that the loser advances to (max 10)
  * 
  * Display fields:
  * @property gameLabel - Optional computed label (e.g., "Pool A Game 1", "Gold Bracket Finals")
@@ -146,9 +152,17 @@ export interface Game extends FirestoreDocument {
   bracketRound?: string;
   bracketPosition?: number;
   dependsOnGames?: string[];
-  feedsIntoGame?: string; // DEPRECATED: Use winnerFeedsIntoGame
+  
+  // DEPRECATED: Single advancement fields - kept for backward compatibility
+  // Use winnerAdvancesTo and loserAdvancesTo arrays instead
+  feedsIntoGame?: string;
   winnerFeedsIntoGame?: string;
   loserFeedsIntoGame?: string;
+  
+  // NEW: Multiple advancement support
+  winnerAdvancesTo?: string[];
+  loserAdvancesTo?: string[];
+  
   gameLabel?: string;
 }
 
@@ -162,6 +176,54 @@ export interface Location extends FirestoreDocument {
     longitude: number;
   };
   mapUrl?: string;
+}
+
+/**
+ * Advancement configuration for game outcomes
+ * 
+ * Defines where winners and losers advance to after a game is completed.
+ * Supports multiple destination games for complex tournament structures.
+ * 
+ * @property winnerAdvancesTo - Array of game IDs that the winner advances to
+ * @property loserAdvancesTo - Array of game IDs that the loser advances to
+ */
+export interface AdvancementConfig {
+  winnerAdvancesTo: string[];
+  loserAdvancesTo: string[];
+}
+
+/**
+ * Advancement validation error types
+ * 
+ * Enumeration of possible validation errors when configuring game advancement.
+ */
+export enum AdvancementError {
+  CIRCULAR_DEPENDENCY = 'Circular dependency detected',
+  GAME_AT_CAPACITY = 'Destination game already has 2 teams',
+  INVALID_GAME_ID = 'Destination game does not exist',
+  DIFFERENT_DIVISION = 'Destination game is in a different division',
+  TOO_MANY_DESTINATIONS = 'Maximum 10 advancement destinations allowed',
+  SELF_REFERENCE = 'Game cannot advance to itself'
+}
+
+/**
+ * Result of advancement validation
+ * 
+ * Contains validation status and detailed information about any errors,
+ * warnings, or issues found during advancement configuration validation.
+ * 
+ * @property valid - Whether the advancement configuration is valid
+ * @property errors - Array of error messages that prevent saving
+ * @property warnings - Array of warning messages that don't prevent saving
+ * @property circularDependencies - Array of game IDs involved in circular dependencies
+ * @property capacityIssues - Array of games that are at or over capacity
+ */
+export interface AdvancementValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  circularDependencies: string[];
+  capacityIssues: { gameId: string; currentCount: number }[];
 }
 
 /**
@@ -335,7 +397,6 @@ export type MainTabParamList = {
 export type ProfileStackParamList = {
   ProfileHome: undefined;
   ManageTeams: undefined;
-  ManageGames: undefined;
   SearchTeams: undefined;
   TeamDetail: { teamName: string; divisionId: string };
 };

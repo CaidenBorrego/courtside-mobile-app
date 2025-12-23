@@ -12,3 +12,4 @@ export * from './gameLabels';
 export * from './tournamentValidation';
 export * from './errorMessages';
 export * from './edgeCaseHandlers';
+export * from './dateUtils';

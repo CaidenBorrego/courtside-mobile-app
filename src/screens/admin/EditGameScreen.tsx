@@ -7,9 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Keyboard,
-  Modal,
 } from 'react-native';
-import { Text, TextInput, Card, Divider, SegmentedButtons, Button as PaperButton, Banner, Dialog, Portal } from 'react-native-paper';
+import { Text, TextInput, Card, Divider, SegmentedButtons, Button as PaperButton, Banner, Dialog } from 'react-native-paper';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -20,6 +19,7 @@ import { gameUpdateService } from '../../services/game/GameUpdateService';
 import { Game, GameStatus, UserRole, RootStackParamList } from '../../types';
 import { Timestamp } from 'firebase/firestore';
 import Button from '../../components/common/Button';
+import AdvancementSelector from '../../components/admin/AdvancementSelector';
 
 type EditGameRouteProp = RouteProp<RootStackParamList & { EditGame: { gameId: string } }, 'EditGame'>;
 type EditGameNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -40,6 +40,7 @@ const EditGameScreen: React.FC = () => {
   const [downstreamGames, setDownstreamGames] = useState<Game[]>([]);
   const [showCascadeWarning, setShowCascadeWarning] = useState(false);
   const [upstreamGames, setUpstreamGames] = useState<Game[]>([]);
+  const cascadeWarningShownRef = React.useRef(false);
 
   // Form state
   const [teamA, setTeamA] = useState('');
@@ -53,13 +54,9 @@ const EditGameScreen: React.FC = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [dependsOnGames, setDependsOnGames] = useState<string[]>([]);
   const [availableGames, setAvailableGames] = useState<Game[]>([]);
-  const [winnerFeedsIntoGame, setWinnerFeedsIntoGame] = useState<string>('');
-  const [loserFeedsIntoGame, setLoserFeedsIntoGame] = useState<string>('');
-  
-  // Game selector modal state
-  const [showGameSelector, setShowGameSelector] = useState(false);
-  const [gameSelectorType, setGameSelectorType] = useState<'winner' | 'loser'>('winner');
-  const [gameSearchQuery, setGameSearchQuery] = useState('');
+  const [allDivisionGames, setAllDivisionGames] = useState<Game[]>([]);
+  const [winnerAdvancesTo, setWinnerAdvancesTo] = useState<string[]>([]);
+  const [loserAdvancesTo, setLoserAdvancesTo] = useState<string[]>([]);
 
   // Check if user has access
   const isAdmin = userProfile?.role === UserRole.ADMIN;
@@ -89,8 +86,11 @@ const EditGameScreen: React.FC = () => {
       setStartTime(date);
       
       setDependsOnGames(gameData.dependsOnGames || []);
-      setWinnerFeedsIntoGame(gameData.winnerFeedsIntoGame || '');
-      setLoserFeedsIntoGame(gameData.loserFeedsIntoGame || '');
+      
+      // Load advancement data using backward-compatible read
+      const advancementData = gameUpdateService.getAdvancementData(gameData);
+      setWinnerAdvancesTo(advancementData.winnerAdvancesTo);
+      setLoserAdvancesTo(advancementData.loserAdvancesTo);
 
       // Load downstream games to show cascade warnings
       try {
@@ -116,6 +116,7 @@ const EditGameScreen: React.FC = () => {
 
       // Load available games from same division for dependency selection
       const divisionGames = await firebaseService.getGamesByDivision(gameData.divisionId);
+      setAllDivisionGames(divisionGames); // Store all games for display
       // Filter out current game and games that would create circular dependencies
       const available = divisionGames.filter(g => 
         g.id !== gameId && 
@@ -240,24 +241,29 @@ const EditGameScreen: React.FC = () => {
       (game.scoreA !== scoreANum || game.scoreB !== scoreBNum)
     );
 
-    // Show cascade warning if needed
-    if (willAffectDownstream && !showCascadeWarning) {
+    // Show cascade warning if needed (only once per save attempt)
+    if (willAffectDownstream && !cascadeWarningShownRef.current) {
       const gamesList = downstreamGames
         .map(g => `• ${g.teamA} vs ${g.teamB}${g.gameLabel ? ` (${g.gameLabel})` : ''}`)
         .join('\n');
       
       Alert.alert(
         'Cascade Update Warning',
-        `This game feeds into other games. Changes will cascade to:\n\n${gamesList}\n\nDo you want to continue?`,
+        `This game feeds into ${downstreamGames.length} other game${downstreamGames.length > 1 ? 's' : ''}. Changes will cascade to:\n\n${gamesList}\n\nDo you want to continue?`,
         [
           {
             text: 'Cancel',
             style: 'cancel',
+            onPress: () => {
+              // Reset ref when user cancels
+              cascadeWarningShownRef.current = false;
+            },
           },
           {
             text: 'Continue',
             onPress: () => {
-              setShowCascadeWarning(true);
+              // Mark that we've shown the warning for this save attempt
+              cascadeWarningShownRef.current = true;
               // Trigger save again after user confirms
               setTimeout(() => handleSave(), 100);
             },
@@ -266,9 +272,6 @@ const EditGameScreen: React.FC = () => {
       );
       return;
     }
-
-    // Reset cascade warning flag for next save
-    setShowCascadeWarning(false);
 
     // Prepare update data
     const updates: any = {
@@ -279,15 +282,34 @@ const EditGameScreen: React.FC = () => {
       status,
       court: court.trim() || undefined,
       startTime: Timestamp.fromDate(startTime),
-      winnerFeedsIntoGame: winnerFeedsIntoGame || undefined,
-      loserFeedsIntoGame: loserFeedsIntoGame || undefined,
     };
+
+    // Only include advancement fields if they were actually changed
+    // This prevents clearing them when resetting a game
+    const originalWinnerAdvancesTo = game.winnerAdvancesTo || [];
+    const originalLoserAdvancesTo = game.loserAdvancesTo || [];
+    
+    const winnerChanged = JSON.stringify(winnerAdvancesTo.sort()) !== JSON.stringify(originalWinnerAdvancesTo.sort());
+    const loserChanged = JSON.stringify(loserAdvancesTo.sort()) !== JSON.stringify(originalLoserAdvancesTo.sort());
+    
+    if (winnerChanged) {
+      updates.winnerAdvancesTo = winnerAdvancesTo.length > 0 ? winnerAdvancesTo : undefined;
+      updates.winnerFeedsIntoGame = winnerAdvancesTo.length > 0 ? winnerAdvancesTo[0] : undefined;
+    }
+    
+    if (loserChanged) {
+      updates.loserAdvancesTo = loserAdvancesTo.length > 0 ? loserAdvancesTo : undefined;
+      updates.loserFeedsIntoGame = loserAdvancesTo.length > 0 ? loserAdvancesTo[0] : undefined;
+    }
 
     try {
       setSaving(true);
 
       // Use GameUpdateService instead of direct FirebaseService call
       const result = await gameUpdateService.updateGame(gameId, updates);
+
+      // Reset cascade warning ref after successful save
+      cascadeWarningShownRef.current = false;
 
       if (!result.success) {
         setValidationErrors(result.errors);
@@ -314,6 +336,8 @@ const EditGameScreen: React.FC = () => {
     } catch (error) {
       console.error('Error updating game:', error);
       setValidationErrors(['Failed to update game']);
+      // Reset cascade warning ref on error
+      cascadeWarningShownRef.current = false;
     } finally {
       setSaving(false);
     }
@@ -354,70 +378,62 @@ const EditGameScreen: React.FC = () => {
     );
   };
 
-  const openGameSelector = (type: 'winner' | 'loser') => {
-    setGameSelectorType(type);
-    setGameSearchQuery('');
-    setShowGameSelector(true);
+  // Handlers for AdvancementSelector
+  const handleAddWinnerDestination = (gameId: string) => {
+    setWinnerAdvancesTo([...winnerAdvancesTo, gameId]);
   };
 
-  const selectGame = (gameId: string) => {
-    if (gameSelectorType === 'winner') {
-      setWinnerFeedsIntoGame(gameId);
-    } else {
-      setLoserFeedsIntoGame(gameId);
-    }
-    setShowGameSelector(false);
+  const handleRemoveWinnerDestination = (gameId: string) => {
+    setWinnerAdvancesTo(winnerAdvancesTo.filter(id => id !== gameId));
   };
 
-  const getSelectedGameLabel = (gameId: string) => {
-    if (!gameId) return 'None';
-    const game = availableGames.find(g => g.id === gameId);
-    if (!game) return 'Unknown Game';
-    return game.gameLabel || `${game.teamA} vs ${game.teamB}`;
+  const handleAddLoserDestination = (gameId: string) => {
+    setLoserAdvancesTo([...loserAdvancesTo, gameId]);
+  };
+
+  const handleRemoveLoserDestination = (gameId: string) => {
+    setLoserAdvancesTo(loserAdvancesTo.filter(id => id !== gameId));
   };
 
   // Calculate how many games are feeding into each game
   const getGameFeedCount = (targetGameId: string): { count: number; games: Game[] } => {
-    const feedingGames = availableGames.filter(g => 
-      g.winnerFeedsIntoGame === targetGameId || g.loserFeedsIntoGame === targetGameId
-    );
+    const feedingGames = availableGames.filter(g => {
+      // Check new array fields
+      if (g.winnerAdvancesTo && g.winnerAdvancesTo.includes(targetGameId)) {
+        return true;
+      }
+      if (g.loserAdvancesTo && g.loserAdvancesTo.includes(targetGameId)) {
+        return true;
+      }
+      // Check deprecated single fields for backward compatibility
+      if (g.winnerFeedsIntoGame === targetGameId) {
+        return true;
+      }
+      if (g.loserFeedsIntoGame === targetGameId) {
+        return true;
+      }
+      return false;
+    });
     return { count: feedingGames.length, games: feedingGames };
   };
 
   // Get games that feed into the current game
-  const gamesFeedingIntoCurrentGame = availableGames.filter(g => 
-    g.winnerFeedsIntoGame === gameId || g.loserFeedsIntoGame === gameId
-  );
-
-  // Check if a game can accept more feeds
-  const canGameAcceptFeed = (targetGameId: string): boolean => {
-    const { count } = getGameFeedCount(targetGameId);
-    // If we're changing an existing feed, we need to account for that
-    const currentFeedToThisGame = (
-      (gameSelectorType === 'winner' && winnerFeedsIntoGame === targetGameId) ||
-      (gameSelectorType === 'loser' && loserFeedsIntoGame === targetGameId)
-    );
-    
-    // If already feeding into this game, it's always allowed (we're just keeping it)
-    if (currentFeedToThisGame) return true;
-    
-    // Otherwise, check if there's room for one more
-    return count < 2;
-  };
-
-  const filteredAvailableGames = availableGames.filter(g => {
-    if (g.id === gameId) return false;
-    if (gameSelectorType === 'winner' && g.id === loserFeedsIntoGame) return false;
-    if (gameSelectorType === 'loser' && g.id === winnerFeedsIntoGame) return false;
-    
-    if (!gameSearchQuery.trim()) return true;
-    
-    const query = gameSearchQuery.toLowerCase();
-    const labelMatch = g.gameLabel?.toLowerCase().includes(query);
-    const teamAMatch = g.teamA.toLowerCase().includes(query);
-    const teamBMatch = g.teamB.toLowerCase().includes(query);
-    
-    return labelMatch || teamAMatch || teamBMatch;
+  const gamesFeedingIntoCurrentGame = availableGames.filter(g => {
+    // Check new array fields
+    if (g.winnerAdvancesTo && g.winnerAdvancesTo.includes(gameId)) {
+      return true;
+    }
+    if (g.loserAdvancesTo && g.loserAdvancesTo.includes(gameId)) {
+      return true;
+    }
+    // Check deprecated single fields for backward compatibility
+    if (g.winnerFeedsIntoGame === gameId) {
+      return true;
+    }
+    if (g.loserFeedsIntoGame === gameId) {
+      return true;
+    }
+    return false;
   });
 
   if (!hasAccess) {
@@ -844,50 +860,30 @@ const EditGameScreen: React.FC = () => {
             <Text variant="bodyMedium" style={styles.inputLabel}>
               Winner Advances To
             </Text>
-            <TouchableOpacity 
-              style={[
-                styles.gameSelectorButton,
-                winnerFeedsIntoGame && styles.gameSelectorButtonSelected
-              ]}
-              onPress={() => openGameSelector('winner')}
-            >
-              <View style={styles.gameSelectorButtonContent}>
-                {winnerFeedsIntoGame && (
-                  <Text style={styles.gameSelectorSelectedIndicator}>✓</Text>
-                )}
-                <Text style={[
-                  styles.gameSelectorButtonText,
-                  winnerFeedsIntoGame && styles.gameSelectorButtonTextSelected
-                ]}>
-                  {getSelectedGameLabel(winnerFeedsIntoGame)}
-                </Text>
-              </View>
-              <Text style={styles.gameSelectorButtonIcon}>▼</Text>
-            </TouchableOpacity>
+            <AdvancementSelector
+              type="winner"
+              selectedGameIds={winnerAdvancesTo}
+              availableGames={availableGames.filter(g => g.id !== gameId)}
+              allGames={allDivisionGames}
+              onAdd={handleAddWinnerDestination}
+              onRemove={handleRemoveWinnerDestination}
+              maxSelections={10}
+              getGameCapacity={getGameFeedCount}
+            />
             
             <Text variant="bodyMedium" style={styles.inputLabel}>
               Loser Advances To
             </Text>
-            <TouchableOpacity 
-              style={[
-                styles.gameSelectorButton,
-                loserFeedsIntoGame && styles.gameSelectorButtonSelected
-              ]}
-              onPress={() => openGameSelector('loser')}
-            >
-              <View style={styles.gameSelectorButtonContent}>
-                {loserFeedsIntoGame && (
-                  <Text style={styles.gameSelectorSelectedIndicator}>✓</Text>
-                )}
-                <Text style={[
-                  styles.gameSelectorButtonText,
-                  loserFeedsIntoGame && styles.gameSelectorButtonTextSelected
-                ]}>
-                  {getSelectedGameLabel(loserFeedsIntoGame)}
-                </Text>
-              </View>
-              <Text style={styles.gameSelectorButtonIcon}>▼</Text>
-            </TouchableOpacity>
+            <AdvancementSelector
+              type="loser"
+              selectedGameIds={loserAdvancesTo}
+              availableGames={availableGames.filter(g => g.id !== gameId)}
+              allGames={allDivisionGames}
+              onAdd={handleAddLoserDestination}
+              onRemove={handleRemoveLoserDestination}
+              maxSelections={10}
+              getGameCapacity={getGameFeedCount}
+            />
 
             {gamesFeedingIntoCurrentGame.length > 0 && (
               <>
@@ -899,8 +895,11 @@ const EditGameScreen: React.FC = () => {
                   This game receives teams from the following games
                 </Text>
                 {gamesFeedingIntoCurrentGame.map((upstreamGame) => {
-                  const isWinnerFeed = upstreamGame.winnerFeedsIntoGame === gameId;
-                  const isLoserFeed = upstreamGame.loserFeedsIntoGame === gameId;
+                  // Check both new array fields and old single fields
+                  const isWinnerFeed = (upstreamGame.winnerAdvancesTo && upstreamGame.winnerAdvancesTo.includes(gameId)) || 
+                                       upstreamGame.winnerFeedsIntoGame === gameId;
+                  const isLoserFeed = (upstreamGame.loserAdvancesTo && upstreamGame.loserAdvancesTo.includes(gameId)) || 
+                                      upstreamGame.loserFeedsIntoGame === gameId;
                   return (
                     <View key={upstreamGame.id} style={styles.feedingGameItem}>
                       <View style={styles.feedingGameInfo}>
@@ -928,127 +927,6 @@ const EditGameScreen: React.FC = () => {
           </Card.Content>
         </Card>
       )}
-
-      <Modal
-        visible={showGameSelector}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowGameSelector(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>
-              Select {gameSelectorType === 'winner' ? 'Winner' : 'Loser'} Destination
-            </Text>
-            
-            <TextInput
-              mode="outlined"
-              placeholder="Search by game label or team name..."
-              value={gameSearchQuery}
-              onChangeText={setGameSearchQuery}
-              left={<TextInput.Icon icon="magnify" />}
-              right={
-                gameSearchQuery ? (
-                  <TextInput.Icon 
-                    icon="close" 
-                    onPress={() => setGameSearchQuery('')}
-                  />
-                ) : null
-              }
-              style={styles.searchInput}
-              outlineColor="#E5E7EB"
-              activeOutlineColor="#2563EB"
-            />
-            
-            <ScrollView style={styles.modalScrollView}>
-              <TouchableOpacity
-                style={styles.gameOption}
-                onPress={() => selectGame('')}
-              >
-                <Text style={styles.gameOptionText}>None</Text>
-              </TouchableOpacity>
-              <Divider style={styles.dialogDivider} />
-              {filteredAvailableGames.map((game) => {
-                const feedInfo = getGameFeedCount(game.id);
-                const canAccept = canGameAcceptFeed(game.id);
-                const isFull = feedInfo.count >= 2;
-                
-                return (
-                  <View key={game.id}>
-                    <TouchableOpacity
-                      style={[
-                        styles.gameOption,
-                        !canAccept && styles.gameOptionDisabled
-                      ]}
-                      onPress={() => {
-                        if (canAccept) {
-                          selectGame(game.id);
-                        } else {
-                          Alert.alert(
-                            'Game Full',
-                            `This game already has 2 games feeding into it:\n\n${feedInfo.games.map(g => `• ${g.gameLabel || `${g.teamA} vs ${g.teamB}`}`).join('\n')}\n\nA game can only have a maximum of 2 source games.`
-                          );
-                        }
-                      }}
-                      disabled={!canAccept}
-                    >
-                      <View style={styles.gameOptionContent}>
-                        <View style={styles.gameOptionHeader}>
-                          <Text style={[
-                            styles.gameOptionTitle,
-                            !canAccept && styles.gameOptionTitleDisabled
-                          ]}>
-                            {game.gameLabel || `${game.teamA} vs ${game.teamB}`}
-                          </Text>
-                          {feedInfo.count > 0 && (
-                            <View style={[
-                              styles.feedCountBadge,
-                              isFull && styles.feedCountBadgeFull
-                            ]}>
-                              <Text style={[
-                                styles.feedCountText,
-                                isFull && styles.feedCountTextFull
-                              ]}>
-                                {feedInfo.count}/2
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                        {game.gameLabel && (
-                          <Text style={[
-                            styles.gameOptionSubtitle,
-                            !canAccept && styles.gameOptionSubtitleDisabled
-                          ]}>
-                            {game.teamA} vs {game.teamB}
-                          </Text>
-                        )}
-                        {feedInfo.count > 0 && (
-                          <Text style={styles.feedingGamesText}>
-                            Fed by: {feedInfo.games.map(g => g.gameLabel || `${g.teamA} vs ${g.teamB}`).join(', ')}
-                          </Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                    <Divider />
-                  </View>
-                );
-              })}
-              {filteredAvailableGames.length === 0 && (
-                <Text style={styles.noGamesText}>
-                  {gameSearchQuery ? 'No matching games found' : 'No available games'}
-                </Text>
-              )}
-            </ScrollView>
-            
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={() => setShowGameSelector(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
       </ScrollView>
 
       <View style={styles.actionsFooter}>
@@ -1325,160 +1203,6 @@ const styles = StyleSheet.create({
   feedingGameTitle: {
     flex: 1,
     marginRight: 8,
-  },
-  gameSelectorButton: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    marginBottom: 12,
-  },
-  gameSelectorButtonSelected: {
-    backgroundColor: '#EBF8FF',
-    borderColor: '#2563EB',
-    borderWidth: 2,
-  },
-  gameSelectorButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  gameSelectorSelectedIndicator: {
-    fontSize: 18,
-    color: '#2563EB',
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  gameSelectorButtonText: {
-    fontSize: 16,
-    color: '#000000',
-    flex: 1,
-  },
-  gameSelectorButtonTextSelected: {
-    color: '#2563EB',
-    fontWeight: '600',
-  },
-  gameSelectorButtonIcon: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginLeft: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '70%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#000000',
-    marginBottom: 16,
-  },
-  modalScrollView: {
-    maxHeight: 250,
-    marginBottom: 16,
-  },
-  searchInput: {
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-  },
-  cancelButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000000',
-  },
-  dialogDivider: {
-    backgroundColor: '#E5E7EB',
-  },
-  gameOption: {
-    padding: 12,
-    backgroundColor: '#FFFFFF',
-  },
-  gameOptionDisabled: {
-    opacity: 0.5,
-    backgroundColor: '#F9FAFB',
-  },
-  gameOptionContent: {
-    flex: 1,
-  },
-  gameOptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  gameOptionTitle: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#000000',
-    flex: 1,
-    marginRight: 8,
-  },
-  gameOptionTitleDisabled: {
-    color: '#9CA3AF',
-  },
-  gameOptionSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  gameOptionSubtitleDisabled: {
-    color: '#9CA3AF',
-  },
-  gameOptionText: {
-    fontSize: 16,
-    color: '#000000',
-  },
-  feedingGamesText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  feedCountBadge: {
-    backgroundColor: '#DBEAFE',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2563EB',
-  },
-  feedCountBadgeFull: {
-    backgroundColor: '#FEE2E2',
-    borderColor: '#DC2626',
-  },
-  feedCountText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#2563EB',
-  },
-  feedCountTextFull: {
-    color: '#DC2626',
-  },
-  noGamesText: {
-    padding: 16,
-    textAlign: 'center',
-    color: '#6B7280',
   },
   actionsFooter: {
     flexDirection: 'row',

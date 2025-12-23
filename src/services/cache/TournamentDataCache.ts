@@ -181,7 +181,12 @@ class TournamentDataCacheService {
     console.log('🔄 Force refreshing tournament:', tournamentId);
     const cached = this.cache.get(tournamentId);
     if (cached) {
-      // Keep the games listener but clear the timestamp to force reload
+      // Clear pools, brackets, and standings but keep divisions and games listener
+      cached.pools = new Map();
+      cached.brackets = new Map();
+      cached.poolStandings = new Map();
+      cached.bracketGames = new Map();
+      cached.standings = new Map();
       cached.timestamp = 0;
     }
   }

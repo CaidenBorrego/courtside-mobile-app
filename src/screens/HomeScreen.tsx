@@ -9,6 +9,7 @@ import TournamentCard from '../components/tournament/TournamentCard';
 import Button from '../components/common/Button';
 import OfflineIndicator from '../components/common/OfflineIndicator';
 import { useOptimizedFlatList } from '../hooks/useOptimizedFlatList';
+import { getTimestampMillis } from '../utils/dateUtils';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -29,8 +30,8 @@ const HomeScreen: React.FC = () => {
       (updatedTournaments) => {
         // Sort tournaments by most recent (startDate descending)
         const sortedTournaments = [...updatedTournaments].sort((a, b) => {
-          const dateA = a.startDate.toMillis();
-          const dateB = b.startDate.toMillis();
+          const dateA = getTimestampMillis(a.startDate);
+          const dateB = getTimestampMillis(b.startDate);
           return dateB - dateA;
         });
         setTournaments(sortedTournaments);
@@ -71,11 +72,11 @@ const HomeScreen: React.FC = () => {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const updatedTournaments = await firebaseService.getActiveTournaments();
+      const updatedTournaments = await firebaseService.getActiveTournaments(false); // Don't use cache on manual refresh
       // Sort by most recent
       const sortedTournaments = [...updatedTournaments].sort((a, b) => {
-        const dateA = a.startDate.toMillis();
-        const dateB = b.startDate.toMillis();
+        const dateA = getTimestampMillis(a.startDate);
+        const dateB = getTimestampMillis(b.startDate);
         return dateB - dateA;
       });
       setTournaments(sortedTournaments);

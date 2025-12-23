@@ -8,6 +8,7 @@ import { Pool, Bracket, PoolStanding, Game, Division, RootStackParamList } from 
 import { useTournament } from '../../../contexts/TournamentContext';
 import { tournamentDataCache } from '../../../services/cache/TournamentDataCache';
 import DivisionSelector from '../../../components/tournament/DivisionSelector';
+import { isPlaceholderTeam } from '../../../utils/gameLabels';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -114,7 +115,7 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
                   </Text>
                   <Text variant="bodySmall" style={styles.cardSubtitle}>
                     {pool.teams.length} teams
-                    {pool.advancementCount && ` • Top ${pool.advancementCount} advance`}
+                    {pool.advancementCount && pool.advancementCount > 0 ? ` • Top ${pool.advancementCount} advance` : ''}
                   </Text>
                 </View>
               </View>
@@ -148,34 +149,48 @@ const PoolsAndBracketsTab: React.FC<PoolsAndBracketsTabProps> = ({ tournamentId 
                       <DataTable.Title numeric style={styles.statColumn}>Diff</DataTable.Title>
                     </DataTable.Header>
 
-                    {standings.map((standing) => (
-                      <DataTable.Row key={standing.teamName}>
-                        <DataTable.Cell style={styles.rankColumn}>
-                          <Text style={styles.rankText}>{standing.poolRank}</Text>
-                        </DataTable.Cell>
-                        <DataTable.Cell style={styles.teamColumn}>
-                          <TouchableOpacity 
-                            onPress={() => handleTeamPress(standing.teamName, divisionId)}
-                            activeOpacity={0.7}
-                          >
-                            <Text 
-                              variant="bodyMedium" 
-                              style={styles.teamNameTappable}
-                              numberOfLines={1}
-                            >
-                              {standing.teamName}
-                            </Text>
-                          </TouchableOpacity>
-                        </DataTable.Cell>
-                        <DataTable.Cell numeric style={styles.statColumn}>
-                          {standing.wins}-{standing.losses}
-                        </DataTable.Cell>
-                        <DataTable.Cell numeric style={styles.statColumn}>
-                          {standing.pointDifferential > 0 ? '+' : ''}
-                          {standing.pointDifferential}
-                        </DataTable.Cell>
-                      </DataTable.Row>
-                    ))}
+                    {standings.map((standing) => {
+                      const isPlaceholder = isPlaceholderTeam(standing.teamName);
+                      
+                      return (
+                        <DataTable.Row key={standing.teamName}>
+                          <DataTable.Cell style={styles.rankColumn}>
+                            <Text style={styles.rankText}>{standing.poolRank}</Text>
+                          </DataTable.Cell>
+                          <DataTable.Cell style={styles.teamColumn}>
+                            {isPlaceholder ? (
+                              <Text 
+                                variant="bodyMedium" 
+                                style={styles.placeholderTeamName}
+                                numberOfLines={1}
+                              >
+                                {standing.teamName}
+                              </Text>
+                            ) : (
+                              <TouchableOpacity 
+                                onPress={() => handleTeamPress(standing.teamName, divisionId)}
+                                activeOpacity={0.7}
+                              >
+                                <Text 
+                                  variant="bodyMedium" 
+                                  style={styles.teamNameTappable}
+                                  numberOfLines={1}
+                                >
+                                  {standing.teamName}
+                                </Text>
+                              </TouchableOpacity>
+                            )}
+                          </DataTable.Cell>
+                          <DataTable.Cell numeric style={styles.statColumn}>
+                            {standing.wins}-{standing.losses}
+                          </DataTable.Cell>
+                          <DataTable.Cell numeric style={styles.statColumn}>
+                            {standing.pointDifferential > 0 ? '+' : ''}
+                            {standing.pointDifferential}
+                          </DataTable.Cell>
+                        </DataTable.Row>
+                      );
+                    })}
                   </DataTable>
                 </View>
               )}
@@ -533,6 +548,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#000000',
     textDecorationLine: 'underline',
+  },
+  placeholderTeamName: {
+    fontWeight: '500',
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
   roundSection: {
     marginBottom: 20,

@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Text } from 'react-native-paper';
 import { Tournament, TournamentStatus } from '../../types';
 import { format } from 'date-fns';
@@ -15,6 +15,8 @@ const DEFAULT_TOURNAMENT_IMAGE = 'https://images.unsplash.com/photo-1546519638-6
 
 const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) => {
   const { colors } = useTheme();
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   const formatDate = (timestamp: any) => {
     try {
@@ -57,6 +59,21 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
     }
   };
 
+  // Determine which image URL to use
+  const imageUrl = imageError || !tournament.imageUrl 
+    ? DEFAULT_TOURNAMENT_IMAGE 
+    : tournament.imageUrl;
+
+  const handleImageLoad = () => {
+    setImageLoading(false);
+  };
+
+  const handleImageError = (error: any) => {
+    console.warn('Failed to load tournament image:', tournament.imageUrl, error.nativeEvent?.error);
+    setImageError(true);
+    setImageLoading(false);
+  };
+
   return (
     <TouchableOpacity 
       onPress={() => onPress(tournament.id)}
@@ -65,11 +82,20 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
     >
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {/* Tournament Image */}
-        <Image
-          source={{ uri: tournament.imageUrl || DEFAULT_TOURNAMENT_IMAGE }}
-          style={[styles.image, { backgroundColor: colors.imagePlaceholder }]}
-          resizeMode="cover"
-        />
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: imageUrl }}
+            style={[styles.image, { backgroundColor: colors.imagePlaceholder }]}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+          {imageLoading && (
+            <View style={styles.imageLoadingOverlay}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+            </View>
+          )}
+        </View>
         
         {/* Content */}
         <View style={styles.content}>
@@ -108,9 +134,24 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
   },
-  image: {
+  imageContainer: {
     width: '100%',
     height: 180,
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+  },
+  imageLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   content: {
     padding: 16,

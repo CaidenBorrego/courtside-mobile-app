@@ -87,6 +87,7 @@ export const isPlaceholderTeam = (teamName: string): boolean => {
     lowerName.startsWith('loser') ||
     lowerName.startsWith('seed') ||
     lowerName.match(/^\d+(st|nd|rd|th)\s+pool/i) !== null || // "1st Pool A", "2nd Pool B"
+    lowerName.match(/^[lw]\d+$/i) !== null || // "L1", "L2", "W1", "W2", etc.
     lowerName === '' ||
     lowerName === '-'
   );

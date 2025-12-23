@@ -12,3 +12,7 @@ export { default as LocationCard } from './tournament/LocationCard';
 
 // Game components  
 export { default as GameCard } from './game/GameCard';
+
+// Admin components
+export { default as AdvancementSelector } from './admin/AdvancementSelector';
+export type { AdvancementSelectorProps } from './admin/AdvancementSelector';

@@ -12,6 +12,7 @@ import {
   TextInput,
   HelperText,
 } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { validateEmail, validatePassword } from '../../utils';
 import { useTheme } from '../../hooks/useTheme';
@@ -94,10 +95,19 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.content}>
+          {/* Logo/Icon Section */}
+          <View style={styles.logoContainer}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.text }]}>
+              <Ionicons name="basketball" size={48} color={colors.background} />
+            </View>
+            <Text style={[styles.appName, { color: colors.text }]}>CourtSide</Text>
+          </View>
+
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.title, { color: colors.text }]}>Welcome to CourtSide</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Sign in to follow your favorite teams and games
             </Text>
@@ -153,7 +163,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             <TouchableOpacity
               onPress={handleLogin}
               disabled={loading}
-              style={[styles.loginButton, { backgroundColor: colors.text }]}
+              style={[styles.loginButton, { backgroundColor: colors.text, opacity: loading ? 0.6 : 1 }]}
               activeOpacity={0.8}
             >
               <Text style={[styles.loginButtonText, { color: colors.background }]}>
@@ -185,27 +195,52 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 16,
+    padding: 20,
+    paddingTop: 60,
+    paddingBottom: 40,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   card: {
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 28,
     borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   title: {
     textAlign: 'center',
     marginBottom: 8,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
   },
   subtitle: {
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
     fontSize: 15,
+    lineHeight: 22,
   },
   input: {
     marginBottom: 4,
@@ -213,29 +248,37 @@ const styles = StyleSheet.create({
   },
   authError: {
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    marginTop: 8,
   },
   loginButton: {
     marginTop: 24,
-    marginBottom: 16,
-    paddingVertical: 14,
-    borderRadius: 8,
+    marginBottom: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   loginButtonText: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 8,
   },
   registerText: {
-    fontSize: 14,
+    fontSize: 15,
   },
   registerLink: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

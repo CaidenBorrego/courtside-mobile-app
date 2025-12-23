@@ -33,6 +33,7 @@ const EditTournamentScreen: React.FC = () => {
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [address, setAddress] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -72,6 +73,7 @@ const EditTournamentScreen: React.FC = () => {
       setCity(tournamentData.city);
       setState(tournamentData.state);
       setAddress(tournamentData.address || '');
+      setImageUrl(tournamentData.imageUrl || '');
       setStartDate(formatDateForInput(tournamentData.startDate));
       setEndDate(formatDateForInput(tournamentData.endDate));
     } catch (error) {
@@ -116,6 +118,7 @@ const EditTournamentScreen: React.FC = () => {
         city: city.trim(),
         state: state.trim(),
         address: address.trim() || undefined,
+        imageUrl: imageUrl.trim() || undefined,
         startDate: Timestamp.fromDate(startDateObj),
         endDate: Timestamp.fromDate(endDateObj),
       };
@@ -197,6 +200,16 @@ const EditTournamentScreen: React.FC = () => {
             style={styles.input}
             multiline
             numberOfLines={2}
+          />
+          <TextInput
+            label="Image URL"
+            mode="outlined"
+            value={imageUrl}
+            onChangeText={setImageUrl}
+            style={styles.input}
+            placeholder="https://example.com/image.jpg"
+            autoCapitalize="none"
+            autoCorrect={false}
           />
         </Card.Content>
       </Card>

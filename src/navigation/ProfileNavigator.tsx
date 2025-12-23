@@ -41,12 +41,6 @@ const ProfileNavigator: React.FC = () => {
         {() => <ManageFollowingScreen type="teams" />}
       </Stack.Screen>
       <Stack.Screen
-        name="ManageGames"
-        options={{ title: 'Manage Games' }}
-      >
-        {() => <ManageFollowingScreen type="games" />}
-      </Stack.Screen>
-      <Stack.Screen
         name="SearchTeams"
         component={SearchTeamsScreen}
         options={{ title: 'Follow Teams' }}

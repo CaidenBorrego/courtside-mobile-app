@@ -36,6 +36,7 @@ const ProfileScreen: React.FC = () => {
   const [teamDivisionIds, setTeamDivisionIds] = useState<Record<string, string>>({});
   const [loadingTeams, setLoadingTeams] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [showAllGames, setShowAllGames] = useState(false);
 
   // Refresh profile and sync team games when screen comes into focus
   useFocusEffect(
@@ -599,7 +600,7 @@ const ProfileScreen: React.FC = () => {
             </View>
           ) : (
             <View style={styles.listContainer}>
-              {followedGamesData.slice(0, 5).map((game, index) => {
+              {(showAllGames ? followedGamesData : followedGamesData.slice(0, 5)).map((game, index, array) => {
                 const isScheduled = game.status === 'scheduled';
                 const isCompleted = game.status === 'completed';
                 const teamAWon = isCompleted && game.scoreA > game.scoreB;
@@ -688,19 +689,23 @@ const ProfileScreen: React.FC = () => {
                       </View>
                       <Ionicons name="close-circle-outline" size={24} color="#f44336" />
                     </TouchableOpacity>
-                    {index < Math.min(4, followedGamesData.length - 1) && <Divider />}
+                    {index < array.length - 1 && <Divider />}
                   </View>
                 );
               })}
               {followedGamesData.length > 5 && (
                 <TouchableOpacity
                   style={styles.viewAllButton}
-                  onPress={() => navigation.navigate('ManageGames')}
+                  onPress={() => setShowAllGames(!showAllGames)}
                 >
                   <Text style={styles.viewAllText}>
-                    View all {followedGamesData.length} games
+                    {showAllGames ? 'Show less' : `View all ${followedGamesData.length} games`}
                   </Text>
-                  <Ionicons name="chevron-forward" size={20} color="#000000" />
+                  <Ionicons 
+                    name={showAllGames ? "chevron-up" : "chevron-down"} 
+                    size={20} 
+                    color="#000000" 
+                  />
                 </TouchableOpacity>
               )}
             </View>

@@ -23,6 +23,7 @@ import {
 import { PoolValidator } from '../../utils/tournamentValidation';
 import { TiedStandingsResolver } from '../../utils/edgeCaseHandlers';
 import { cacheData, getCachedData, clearCache, CacheKeys } from '../../utils/cache';
+import { isPlaceholderTeam } from '../../utils/gameLabels';
 
 /**
  * Service for managing pool play functionality including:
@@ -307,37 +308,48 @@ export class PoolService {
    * @param useCache - Whether to use cached data (default: true)
    * @returns Array of pool standings sorted by rank
    */
-  async calculateStandings(poolId: string, useCache: boolean = true): Promise<PoolStanding[]> {
+  async calculateStandings(poolId: string, useCache: boolean = false): Promise<PoolStanding[]> {
     try {
-      // Check cache first
-      if (useCache) {
-        const cacheKey = CacheKeys.POOL_STANDINGS(poolId);
-        const cached = await getCachedData<PoolStanding[]>(cacheKey);
-        if (cached) {
-          return cached;
-        }
-      }
-
-      // Fetch pool and its games
+      // Always fetch fresh data - no caching
       const pool = await this.getPool(poolId);
       const games = await this.getGamesByPool(poolId);
 
       // Initialize standings for each team
+      // Build standings from teams that currently appear in games (not from pool.teams)
+      // Filter out placeholder teams so standings only show real teams
       const standingsMap = new Map<string, PoolStanding>();
       
-      pool.teams.forEach(teamName => {
-        standingsMap.set(teamName, {
-          teamName,
-          divisionId: pool.divisionId,
-          poolId: pool.id,
-          wins: 0,
-          losses: 0,
-          pointsFor: 0,
-          pointsAgainst: 0,
-          pointDifferential: 0,
-          gamesPlayed: 0,
-          poolRank: 0, // Will be set after sorting
-        });
+      games.forEach(game => {
+        // Add teamA if it's a real team (not a placeholder) and not already in map
+        if (game.teamA && !isPlaceholderTeam(game.teamA) && !standingsMap.has(game.teamA)) {
+          standingsMap.set(game.teamA, {
+            teamName: game.teamA,
+            divisionId: pool.divisionId,
+            poolId: pool.id,
+            wins: 0,
+            losses: 0,
+            pointsFor: 0,
+            pointsAgainst: 0,
+            pointDifferential: 0,
+            gamesPlayed: 0,
+            poolRank: 0,
+          });
+        }
+        // Add teamB if it's a real team (not a placeholder) and not already in map
+        if (game.teamB && !isPlaceholderTeam(game.teamB) && !standingsMap.has(game.teamB)) {
+          standingsMap.set(game.teamB, {
+            teamName: game.teamB,
+            divisionId: pool.divisionId,
+            poolId: pool.id,
+            wins: 0,
+            losses: 0,
+            pointsFor: 0,
+            pointsAgainst: 0,
+            pointDifferential: 0,
+            gamesPlayed: 0,
+            poolRank: 0,
+          });
+        }
       });
 
       // Process completed games
@@ -390,10 +402,7 @@ export class PoolService {
       // Resolve ties using comprehensive tiebreaker rules
       const resolvedStandings = TiedStandingsResolver.resolveTies(standings, games);
 
-      // Cache the result
-      const cacheKey = CacheKeys.POOL_STANDINGS(poolId);
-      await cacheData(cacheKey, resolvedStandings, { expiryMinutes: this.CACHE_EXPIRY_MINUTES });
-
+      // Return fresh data - no caching
       return resolvedStandings;
     } catch (error) {
       console.error('Error calculating pool standings:', error);
