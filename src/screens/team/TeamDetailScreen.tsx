@@ -269,13 +269,11 @@ const TeamDetailScreen: React.FC = () => {
                   style={styles.gameItem}
                 >
                   <View style={styles.gameHeader}>
-                    <Chip
-                      mode="flat"
-                      style={[styles.resultChip, { backgroundColor: color }]}
-                      textStyle={styles.resultText}
-                    >
-                      {result}
-                    </Chip>
+                    <View style={[styles.resultChip, { backgroundColor: color }]}>
+                      <Text style={styles.resultText}>
+                        {result}
+                      </Text>
+                    </View>
                     <Text variant="bodySmall" style={styles.gameDate}>
                       {formatDateTime(game.startTime)}
                     </Text>
@@ -446,13 +444,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   resultChip: {
-    width: 40,
-    height: 32,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   resultText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 16,
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   gameDate: {
     color: '#6B7280',

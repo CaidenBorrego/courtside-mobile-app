@@ -25,8 +25,9 @@ export class UserProfileService {
         role: UserRole.USER,
         followingTeams: [],
         followingGames: [],
-        notificationsEnabled: true,
-        fcmToken,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
+        // fcmToken,
         lastActive: Timestamp.now(),
         createdAt: Timestamp.now(),
       };
@@ -69,18 +70,6 @@ export class UserProfileService {
   }
 
   /**
-   * Updates user's FCM token for push notifications
-   */
-  async updateFCMToken(uid: string, fcmToken: string): Promise<void> {
-    try {
-      await this.updateUserProfile(uid, { fcmToken });
-    } catch (error) {
-      console.error('Error updating FCM token:', error);
-      throw new Error('Failed to update FCM token');
-    }
-  }
-
-  /**
    * Updates user's last active timestamp
    */
   async updateLastActive(uid: string): Promise<void> {
@@ -92,17 +81,30 @@ export class UserProfileService {
     }
   }
 
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  /**
+   * Updates user's FCM token for push notifications
+   */
+  // async updateFCMToken(uid: string, fcmToken: string): Promise<void> {
+  //   try {
+  //     await this.updateUserProfile(uid, { fcmToken });
+  //   } catch (error) {
+  //     console.error('Error updating FCM token:', error);
+  //     throw new Error('Failed to update FCM token');
+  //   }
+  // }
+
   /**
    * Toggles notification preferences for user
    */
-  async toggleNotifications(uid: string, enabled: boolean): Promise<void> {
-    try {
-      await this.updateUserProfile(uid, { notificationsEnabled: enabled });
-    } catch (error) {
-      console.error('Error toggling notifications:', error);
-      throw new Error('Failed to toggle notifications');
-    }
-  }
+  // async toggleNotifications(uid: string, enabled: boolean): Promise<void> {
+  //   try {
+  //     await this.updateUserProfile(uid, { notificationsEnabled: enabled });
+  //   } catch (error) {
+  //     console.error('Error toggling notifications:', error);
+  //     throw new Error('Failed to toggle notifications');
+  //   }
+  // }
 
   // Following/Unfollowing functionality
 
@@ -436,6 +438,50 @@ export class UserProfileService {
     } catch (error) {
       console.error('Error syncing team games:', error);
       throw new Error('Failed to sync team games');
+    }
+  }
+
+  /**
+   * Cleans up orphaned game references from user's following list
+   * Removes game IDs that no longer exist in the database
+   * Should be called when "game not found" errors occur
+   */
+  async cleanupOrphanedGames(uid: string): Promise<{ removed: number; remaining: number }> {
+    try {
+      const profile = await this.getUserProfile(uid);
+      
+      if (profile.followingGames.length === 0) {
+        return { removed: 0, remaining: 0 };
+      }
+
+      // Check each game to see if it still exists
+      const validGameIds: string[] = [];
+      const orphanedGameIds: string[] = [];
+
+      for (const gameId of profile.followingGames) {
+        try {
+          await firebaseService.getGame(gameId);
+          validGameIds.push(gameId);
+        } catch {
+          // Game doesn't exist, mark as orphaned
+          orphanedGameIds.push(gameId);
+        }
+      }
+
+      // Update user profile with only valid game IDs
+      if (orphanedGameIds.length > 0) {
+        await this.updateUserProfile(uid, {
+          followingGames: validGameIds
+        });
+      }
+
+      return { 
+        removed: orphanedGameIds.length, 
+        remaining: validGameIds.length 
+      };
+    } catch (error) {
+      console.error('Error cleaning up orphaned games:', error);
+      throw new Error('Failed to cleanup orphaned games');
     }
   }
 

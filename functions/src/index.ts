@@ -6,10 +6,14 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+// NOTIFICATIONS TEMPORARILY DISABLED
+// TODO: Re-enable notifications in future release
+
+/*
 /**
  * Scheduled function that runs every 15 minutes to check for games starting soon
  * Sends notifications to users who are following games that start in the next 15-30 minutes
- */
+ *\/
 export const checkUpcomingGames = functions.pubsub
   .schedule('every 15 minutes')
   .onRun(async (context: functions.EventContext) => {
@@ -122,7 +126,7 @@ export const checkUpcomingGames = functions.pubsub
 /**
  * Firestore trigger that runs when a game document is updated
  * Sends notifications when a game status changes to 'completed'
- */
+ *\/
 export const onGameCompleted = functions.firestore
   .document('games/{gameId}')
   .onUpdate(async (change: functions.Change<functions.firestore.DocumentSnapshot>, context: functions.EventContext) => {
@@ -250,7 +254,7 @@ export const onGameCompleted = functions.firestore
 /**
  * HTTP function to manually trigger a test notification
  * Useful for testing notification setup
- */
+ *\/
 export const sendTestNotification = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // Verify user is authenticated
   if (!context.auth) {
@@ -301,7 +305,7 @@ export const sendTestNotification = functions.https.onCall(async (data: any, con
 /**
  * Cleanup function to remove old completed games from following lists
  * Runs daily to keep user profiles clean
- */
+ *\/
 export const cleanupOldFollowedGames = functions.pubsub
   .schedule('every 24 hours')
   .onRun(async (context: functions.EventContext) => {
@@ -361,3 +365,4 @@ export const cleanupOldFollowedGames = functions.pubsub
       return null;
     }
   });
+*/

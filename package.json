@@ -24,12 +24,14 @@
     "seed:test-data": "npx ts-node --project scripts/tsconfig.json scripts/seed-test-data.ts",
     "verify:data": "npx ts-node --project scripts/tsconfig.json scripts/verify-data.ts",
     "clear:test-tournaments": "npx ts-node --project scripts/tsconfig.json scripts/clear-test-tournaments.ts",
+    "cleanup-hangry-joes": "npx ts-node --project scripts/tsconfig.json scripts/cleanup-keep-hangry-joes.ts",
     "type-check": "npx tsc --noEmit",
     "security-audit": "npm audit --audit-level=high"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "^8.5.1",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/material-top-tabs": "^7.4.3",

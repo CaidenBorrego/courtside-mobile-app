@@ -1,5 +1,56 @@
 # Scripts
 
+## Cleanup: Keep Only Hangry Joe's Tournament
+
+The `cleanup-keep-hangry-joes.ts` script removes ALL orphaned data and keeps only the Hangry Joe's tournament and its related data.
+
+### What it does:
+
+1. Finds the Hangry Joe's tournament (case-insensitive search)
+2. Identifies all related data (divisions, games, pools, brackets, locations)
+3. Deletes all tournaments except Hangry Joe's
+4. Deletes all divisions not belonging to Hangry Joe's
+5. Deletes all games not belonging to Hangry Joe's divisions
+6. Deletes all pools not belonging to Hangry Joe's divisions
+7. Deletes all brackets not belonging to Hangry Joe's divisions
+8. Deletes all locations not used by Hangry Joe's games
+9. Cleans up user following lists (removes references to deleted games)
+
+### How to run:
+
+```bash
+npm run cleanup-hangry-joes
+```
+
+### Prerequisites:
+
+Make sure your `.env` file has the Firebase Admin credentials:
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY`
+
+### ⚠️ WARNING:
+
+**This script permanently deletes ALL data except Hangry Joe's tournament!**
+
+- This operation CANNOT be undone
+- You will be prompted to type "DELETE ALL" to confirm
+- Make sure you have a backup if needed
+- Only the Hangry Joe's tournament and its related data will remain
+
+### Output:
+
+The script provides detailed progress and a summary:
+- Number of tournaments deleted
+- Number of divisions deleted
+- Number of games deleted
+- Number of pools deleted
+- Number of brackets deleted
+- Number of locations deleted
+- Number of user profiles updated
+
+---
+
 ## Clear Test Tournaments
 
 The `clear-test-tournaments.ts` script removes all test tournaments from your Firestore database while preserving the Hays tournament (production data).

@@ -26,9 +26,10 @@ const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const { user, userProfile, signOut, refreshUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    userProfile?.notificationsEnabled ?? true
-  );
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // const [notificationsEnabled, setNotificationsEnabled] = useState(
+  //   userProfile?.notificationsEnabled ?? true
+  // );
   const [followedGamesData, setFollowedGamesData] = useState<Game[]>([]);
   const [loadingGames, setLoadingGames] = useState(false);
   const [teamDivisions, setTeamDivisions] = useState<Record<string, string>>({});
@@ -118,6 +119,20 @@ const ProfileScreen: React.FC = () => {
       );
       const games = await Promise.all(gamesPromises);
       const validGames = games.filter((g): g is Game => g !== null);
+      
+      // Clean up orphaned game references if any games were not found
+      const foundGameIds = validGames.map(g => g.id);
+      const orphanedGameIds = userProfile.followingGames.filter(
+        id => !foundGameIds.includes(id)
+      );
+      
+      if (orphanedGameIds.length > 0 && user) {
+        console.log(`Cleaning up ${orphanedGameIds.length} orphaned game references`);
+        // Clean up in the background without blocking UI
+        userProfileService.cleanupOrphanedGames(user.uid).catch(error => {
+          console.error('Error cleaning up orphaned games:', error);
+        });
+      }
       
       // Sort games: in_progress > scheduled (by start time) > completed
       const sortedGames = validGames.sort((a, b) => {
@@ -237,8 +252,8 @@ const ProfileScreen: React.FC = () => {
       setTeamDivisions(divisionsMap);
       setTeamDivisionIds(divisionIdsMap);
       
-      // Cache the results for 30 minutes (divisions don't change often)
-      await cacheData(cacheKey, { divisions: divisionsMap, divisionIds: divisionIdsMap }, { expiryMinutes: 30 });
+      // Cache the results for 5 minutes (divisions don't change often but should refresh reasonably)
+      await cacheData(cacheKey, { divisions: divisionsMap, divisionIds: divisionIdsMap }, { expiryMinutes: 5 });
     } catch (error) {
       console.error('Error loading team divisions:', error);
     } finally {
@@ -250,12 +265,13 @@ const ProfileScreen: React.FC = () => {
     loadTeamDivisions(false);
   }, [loadTeamDivisions]);
 
+  // NOTIFICATIONS TEMPORARILY DISABLED
   // Sync notifications toggle with user profile
-  useEffect(() => {
-    if (userProfile) {
-      setNotificationsEnabled(userProfile.notificationsEnabled);
-    }
-  }, [userProfile]);
+  // useEffect(() => {
+  //   if (userProfile) {
+  //     setNotificationsEnabled(userProfile.notificationsEnabled);
+  //   }
+  // }, [userProfile]);
 
   // Force refresh when following lists change (after follow/unfollow actions)
   useEffect(() => {
@@ -266,27 +282,28 @@ const ProfileScreen: React.FC = () => {
     }
   }, [userProfile?.followingGames.length, userProfile?.followingTeams.length, user]);
 
-  const handleToggleNotifications = async (value: boolean) => {
-    if (!user) return;
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // const handleToggleNotifications = async (value: boolean) => {
+  //   if (!user) return;
 
-    setNotificationsEnabled(value);
-    setLoading(true);
+  //   setNotificationsEnabled(value);
+  //   setLoading(true);
 
-    try {
-      await userProfileService.toggleNotifications(user.uid, value);
-      await refreshUserProfile();
-      Alert.alert(
-        'Success',
-        `Notifications ${value ? 'enabled' : 'disabled'} successfully`
-      );
-    } catch (error) {
-      console.error('Error toggling notifications:', error);
-      setNotificationsEnabled(!value); // Revert on error
-      Alert.alert('Error', 'Failed to update notification preferences');
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   try {
+  //     await userProfileService.toggleNotifications(user.uid, value);
+  //     await refreshUserProfile();
+  //     Alert.alert(
+  //       'Success',
+  //       `Notifications ${value ? 'enabled' : 'disabled'} successfully`
+  //     );
+  //   } catch (error) {
+  //     console.error('Error toggling notifications:', error);
+  //     setNotificationsEnabled(!value); // Revert on error
+  //     Alert.alert('Error', 'Failed to update notification preferences');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleUnfollowTeam = async (teamName: string) => {
     if (!user) return;
@@ -352,6 +369,20 @@ const ProfileScreen: React.FC = () => {
     try {
       // Refresh user profile
       await refreshUserProfile();
+      
+      // Clean up orphaned games if user exists
+      if (user) {
+        try {
+          const result = await userProfileService.cleanupOrphanedGames(user.uid);
+          if (result.removed > 0) {
+            console.log(`Cleaned up ${result.removed} orphaned game references`);
+            // Refresh profile again to get updated following list
+            await refreshUserProfile();
+          }
+        } catch (error) {
+          console.error('Error cleaning up orphaned games:', error);
+        }
+      }
       
       // Force refresh followed games and team divisions
       await Promise.all([
@@ -423,7 +454,8 @@ const ProfileScreen: React.FC = () => {
         </Card.Content>
       </Card>
 
-      {/* Notification Preferences Section */}
+      {/* Notification Preferences Section - TEMPORARILY DISABLED */}
+      {/* 
       <Card style={styles.card}>
         <Card.Content>
           <Text variant="titleMedium" style={styles.sectionTitle}>
@@ -445,6 +477,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </Card.Content>
       </Card>
+      */}
 
       {/* Following Section - Combined */}
       <Card style={styles.card}>

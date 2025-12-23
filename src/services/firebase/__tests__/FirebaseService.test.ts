@@ -354,8 +354,9 @@ describe('FirebaseService', () => {
       role: UserRole.USER,
       followingTeams: ['Lakers', 'Warriors'],
       followingGames: ['game-1', 'game-2'],
-      notificationsEnabled: true,
-      fcmToken: 'fcm-token-123',
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // notificationsEnabled: true,
+      // fcmToken: 'fcm-token-123',
       lastActive: Timestamp.now(),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),

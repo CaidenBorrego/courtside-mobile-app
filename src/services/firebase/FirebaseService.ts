@@ -271,8 +271,17 @@ export class FirebaseService {
   async updateGame(id: string, updates: UpdateGameData): Promise<void> {
     try {
       const docRef = doc(this.gamesCollection, id);
+      
+      // Filter out undefined values as Firestore doesn't support them
+      const cleanedUpdates = Object.entries(updates).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+      
       await updateDoc(docRef, {
-        ...updates,
+        ...cleanedUpdates,
         updatedAt: Timestamp.now(),
       });
     } catch (error) {
@@ -283,11 +292,95 @@ export class FirebaseService {
 
   async deleteGame(id: string): Promise<void> {
     try {
+      // First, remove this game from all users' followingGames arrays
+      const usersQuery = query(
+        this.usersCollection,
+        where('followingGames', 'array-contains', id)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      // Use batch to update all users at once
+      const batch = writeBatch(db);
+      usersSnapshot.docs.forEach((userDoc) => {
+        batch.update(userDoc.ref, {
+          followingGames: arrayRemove(id),
+          updatedAt: Timestamp.now(),
+        });
+      });
+      
+      // Delete the game document
       const docRef = doc(this.gamesCollection, id);
-      await deleteDoc(docRef);
+      batch.delete(docRef);
+      
+      // Commit all changes
+      await batch.commit();
     } catch (error) {
       console.error('Error deleting game:', error);
       throw new Error('Failed to delete game');
+    }
+  }
+
+  // Cascade operation helpers
+  async getGamesFedBy(gameId: string): Promise<Game[]> {
+    try {
+      // Query for games where this game feeds into them (winner or loser)
+      const winnerQuery = query(
+        this.gamesCollection,
+        where('dependsOnGames', 'array-contains', gameId)
+      );
+      
+      const winnerSnapshot = await getDocs(winnerQuery);
+      const games = winnerSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Game));
+      
+      return games;
+    } catch (error) {
+      console.error('Error fetching games fed by game:', error);
+      throw new Error('Failed to fetch downstream games');
+    }
+  }
+
+  async batchUpdateGames(
+    updates: { gameId: string; data: UpdateGameData }[]
+  ): Promise<void> {
+    try {
+      if (updates.length === 0) {
+        return;
+      }
+
+      // Firestore batch writes are limited to 500 operations
+      const BATCH_LIMIT = 500;
+      
+      if (updates.length > BATCH_LIMIT) {
+        throw new Error(`Cannot update more than ${BATCH_LIMIT} games in a single batch`);
+      }
+
+      const batch = writeBatch(db);
+      const timestamp = Timestamp.now();
+      
+      updates.forEach(({ gameId, data }) => {
+        const docRef = doc(this.gamesCollection, gameId);
+        
+        // Filter out undefined values as Firestore doesn't support them
+        const cleanedData = Object.entries(data).reduce((acc, [key, value]) => {
+          if (value !== undefined) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {} as Record<string, any>);
+        
+        batch.update(docRef, {
+          ...cleanedData,
+          updatedAt: timestamp,
+        });
+      });
+      
+      await batch.commit();
+    } catch (error) {
+      console.error('Error batch updating games:', error);
+      throw new Error('Failed to batch update games');
     }
   }
 
@@ -740,6 +833,34 @@ export class FirebaseService {
     } catch (error) {
       console.error('Error unfollowing game:', error);
       throw new Error('Failed to unfollow game');
+    }
+  }
+
+  async unfollowGameForAllUsers(gameId: string): Promise<void> {
+    try {
+      // Find all users following this game
+      const usersQuery = query(
+        this.usersCollection,
+        where('followingGames', 'array-contains', gameId)
+      );
+      const usersSnapshot = await getDocs(usersQuery);
+      
+      // Use batch to update all users at once
+      const batch = writeBatch(db);
+      usersSnapshot.docs.forEach((userDoc) => {
+        batch.update(userDoc.ref, {
+          followingGames: arrayRemove(gameId),
+          updatedAt: Timestamp.now(),
+        });
+      });
+      
+      // Commit all changes
+      await batch.commit();
+      
+      console.log(`Unfollowed game ${gameId} for ${usersSnapshot.size} users`);
+    } catch (error) {
+      console.error('Error unfollowing game for all users:', error);
+      throw new Error('Failed to unfollow game for all users');
     }
   }
 

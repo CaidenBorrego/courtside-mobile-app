@@ -111,7 +111,8 @@ describe('UserProfileService', () => {
         role: UserRole.USER,
         followingTeams: ['Lakers'],
         followingGames: ['game-1'],
-        notificationsEnabled: true,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
         lastActive: Timestamp.now(),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
@@ -142,7 +143,8 @@ describe('UserProfileService', () => {
 
       const updates = {
         displayName: 'Updated Name',
-        notificationsEnabled: false,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: false,
       };
 
       await userProfileService.updateUserProfile('user-123', updates);
@@ -157,49 +159,20 @@ describe('UserProfileService', () => {
     });
   });
 
-  describe('updateFCMToken', () => {
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  describe.skip('updateFCMToken', () => {
     it('should update FCM token', async () => {
-      mockFirebaseService.updateUserProfile.mockResolvedValue(undefined);
-
-      await userProfileService.updateFCMToken('user-123', 'new-fcm-token');
-
-      expect(mockFirebaseService.updateUserProfile).toHaveBeenCalledWith(
-        'user-123',
-        expect.objectContaining({
-          fcmToken: 'new-fcm-token',
-          lastActive: expect.anything(),
-        })
-      );
+      // Test skipped - notifications disabled
     });
   });
 
-  describe('toggleNotifications', () => {
+  describe.skip('toggleNotifications', () => {
     it('should enable notifications', async () => {
-      mockFirebaseService.updateUserProfile.mockResolvedValue(undefined);
-
-      await userProfileService.toggleNotifications('user-123', true);
-
-      expect(mockFirebaseService.updateUserProfile).toHaveBeenCalledWith(
-        'user-123',
-        expect.objectContaining({
-          notificationsEnabled: true,
-          lastActive: expect.anything(),
-        })
-      );
+      // Test skipped - notifications disabled
     });
 
     it('should disable notifications', async () => {
-      mockFirebaseService.updateUserProfile.mockResolvedValue(undefined);
-
-      await userProfileService.toggleNotifications('user-123', false);
-
-      expect(mockFirebaseService.updateUserProfile).toHaveBeenCalledWith(
-        'user-123',
-        expect.objectContaining({
-          notificationsEnabled: false,
-          lastActive: expect.anything(),
-        })
-      );
+      // Test skipped - notifications disabled
     });
   });
 
@@ -211,7 +184,8 @@ describe('UserProfileService', () => {
       role: UserRole.USER,
       followingTeams: ['Lakers'],
       followingGames: ['game-1'],
-      notificationsEnabled: true,
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // notificationsEnabled: true,
       lastActive: Timestamp.now(),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -358,7 +332,8 @@ describe('UserProfileService', () => {
       role: UserRole.USER,
       followingTeams: ['Lakers'],
       followingGames: ['game-1'],
-      notificationsEnabled: true,
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // notificationsEnabled: true,
       lastActive: Timestamp.now(),
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
@@ -479,7 +454,8 @@ describe('UserProfileService', () => {
         role: UserRole.USER,
         followingTeams: ['Lakers', 'Warriors'],
         followingGames: ['game-1', 'game-2', 'game-3'],
-        notificationsEnabled: true,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
         lastActive: Timestamp.now(),
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),

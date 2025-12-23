@@ -44,7 +44,8 @@ export default function AuthTestScreen() {
               <Text>ID: {userProfile.id}</Text>
               <Text>Display Name: {userProfile.displayName}</Text>
               <Text>Role: {userProfile.role}</Text>
-              <Text>Notifications: {userProfile.notificationsEnabled ? 'Enabled' : 'Disabled'}</Text>
+              {/* NOTIFICATIONS TEMPORARILY DISABLED */}
+              {/* <Text>Notifications: {userProfile.notificationsEnabled ? 'Enabled' : 'Disabled'}</Text> */}
               <Text>Following Teams: {userProfile.followingTeams.length}</Text>
               <Text>Following Games: {userProfile.followingGames.length}</Text>
             </View>

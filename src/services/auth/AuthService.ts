@@ -113,7 +113,8 @@ class AuthService implements AuthServiceInterface {
         role: UserRole.USER,
         followingTeams: [],
         followingGames: [],
-        notificationsEnabled: true,
+        // NOTIFICATIONS TEMPORARILY DISABLED
+        // notificationsEnabled: true,
         createdAt: createdAt,
         lastActive: createdAt,
         ...additionalData

@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Text, Button, Card, Chip } from 'react-native-paper';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { firebaseService } from '../../services/firebase';
 import { userProfileService } from '../../services/user';
 import { useAuth, useGameCompletion } from '../../hooks';
 import { openMaps } from '../../utils';
-import { Game, Location, GameStatus, RootStackParamList } from '../../types';
+import { Game, Location, GameStatus, RootStackParamList, UserRole } from '../../types';
 
 type GameDetailRouteProp = RouteProp<RootStackParamList, 'GameDetail'>;
+type GameDetailNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const GameDetailScreen: React.FC = () => {
   const route = useRoute<GameDetailRouteProp>();
+  const navigation = useNavigation<GameDetailNavigationProp>();
   const { gameId } = route.params;
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   
   const [game, setGame] = useState<Game | null>(null);
   const [location, setLocation] = useState<Location | null>(null);
@@ -24,6 +27,18 @@ const GameDetailScreen: React.FC = () => {
 
   // Automatically advance winner when bracket game is completed
   useGameCompletion(game);
+
+  // Refresh game data when screen comes into focus (e.g., after editing)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🎮 GameDetailScreen focused');
+      // The real-time listener automatically handles updates
+      // No additional action needed as onSnapshot will fire when data changes
+      return () => {
+        // Cleanup if needed
+      };
+    }, [gameId])
+  );
 
   // Set up real-time listener for game updates
   useEffect(() => {
@@ -316,16 +331,30 @@ const GameDetailScreen: React.FC = () => {
 
       {/* Follow Button */}
       {user && (
-        <Button
-          mode={isFollowing ? 'outlined' : 'contained'}
-          onPress={handleFollowToggle}
-          loading={followLoading}
-          disabled={followLoading}
-          style={styles.followButton}
-          icon={isFollowing ? 'heart' : 'heart-outline'}
-        >
-          {isFollowing ? 'Following' : 'Follow Game'}
-        </Button>
+        <View style={styles.buttonContainer}>
+          <Button
+            mode={isFollowing ? 'outlined' : 'contained'}
+            onPress={handleFollowToggle}
+            loading={followLoading}
+            disabled={followLoading}
+            style={styles.followButton}
+            icon={isFollowing ? 'heart' : 'heart-outline'}
+          >
+            {isFollowing ? 'Following' : 'Follow Game'}
+          </Button>
+          
+          {/* Edit Button for Admins and Scorekeepers */}
+          {(userProfile?.role === UserRole.ADMIN || userProfile?.role === UserRole.SCOREKEEPER) && (
+            <Button
+              mode="contained-tonal"
+              onPress={() => navigation.navigate('EditGame', { gameId: game.id })}
+              style={styles.editButton}
+              icon="pencil"
+            >
+              Edit Game
+            </Button>
+          )}
+        </View>
       )}
 
       {!user && (
@@ -470,9 +499,16 @@ const styles = StyleSheet.create({
   mapsButton: {
     marginTop: 12,
   },
-  followButton: {
+  buttonContainer: {
     margin: 16,
     marginTop: 8,
+    gap: 12,
+  },
+  followButton: {
+    marginBottom: 0,
+  },
+  editButton: {
+    marginTop: 0,
   },
   loginPromptCard: {
     margin: 16,

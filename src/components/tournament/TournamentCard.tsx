@@ -18,9 +18,26 @@ const TournamentCard: React.FC<TournamentCardProps> = ({ tournament, onPress }) 
 
   const formatDate = (timestamp: any) => {
     try {
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      let date: Date;
+      if (timestamp && typeof timestamp.toDate === 'function') {
+        // Firestore Timestamp
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        // Already a Date object
+        date = timestamp;
+      } else if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+        // Timestamp-like object with seconds
+        date = new Date(timestamp.seconds * 1000);
+      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        // String or number timestamp
+        date = new Date(timestamp);
+      } else {
+        throw new Error('Invalid timestamp format');
+      }
+      
       return format(date, 'MMM dd, yyyy');
-    } catch {
+    } catch (error) {
+      console.error('Error formatting date:', error, timestamp);
       return 'Date unavailable';
     }
   };

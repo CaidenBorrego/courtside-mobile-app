@@ -5,45 +5,42 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
+  Image,
 } from 'react-native';
-import { Text, Card, FAB, Portal, Dialog, TextInput } from 'react-native-paper';
+import { Text } from 'react-native-paper';
+import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useAuth } from '../../contexts/AuthContext';
 import { firebaseService } from '../../services/firebase';
-import { Tournament, UserRole, TournamentStatus, RootStackParamList } from '../../types';
-import { Timestamp } from 'firebase/firestore';
+import { Tournament, UserRole, RootStackParamList, TournamentStatus } from '../../types';
+import { format } from 'date-fns';
+import { getTournamentDisplayStatus } from '../../utils/tournamentStatus';
 import Button from '../../components/common/Button';
 
 type AdminPanelNavigationProp = StackNavigationProp<RootStackParamList>;
+
+const DEFAULT_TOURNAMENT_IMAGE = 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&h=300&fit=crop';
 
 const AdminPanelScreen: React.FC = () => {
   const { userProfile } = useAuth();
   const navigation = useNavigation<AdminPanelNavigationProp>();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingTournament, setEditingTournament] = useState<Tournament | null>(null);
-  
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    city: '',
-    state: '',
-    startDate: '',
-    endDate: '',
-  });
 
-  // Check if user is admin
+  // Check if user is admin or scorekeeper
   const isAdmin = userProfile?.role === UserRole.ADMIN;
+  const isScorekeeper = userProfile?.role === UserRole.SCOREKEEPER;
+  const hasAccess = isAdmin || isScorekeeper;
 
   useEffect(() => {
-    if (isAdmin) {
+    if (hasAccess) {
       loadTournaments();
     } else {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [hasAccess]);
 
   const loadTournaments = async () => {
     try {
@@ -58,101 +55,47 @@ const AdminPanelScreen: React.FC = () => {
     }
   };
 
-  const handleCreateTournament = () => {
-    setEditingTournament(null);
-    setFormData({
-      name: '',
-      city: '',
-      state: '',
-      startDate: '',
-      endDate: '',
-    });
-    setShowCreateDialog(true);
-  };
-
-  const handleEditTournament = (tournament: Tournament) => {
-    setEditingTournament(tournament);
-    setFormData({
-      name: tournament.name,
-      city: tournament.city,
-      state: tournament.state,
-      startDate: tournament.startDate.toDate().toISOString().split('T')[0],
-      endDate: tournament.endDate.toDate().toISOString().split('T')[0],
-    });
-    setShowCreateDialog(true);
-  };
-
-  const handleSaveTournament = async () => {
-    // Validate form
-    if (!formData.name || !formData.city || !formData.state || !formData.startDate || !formData.endDate) {
-      Alert.alert('Validation Error', 'Please fill in all fields');
-      return;
-    }
-
+  const formatDate = (timestamp: any) => {
     try {
-      const startDate = Timestamp.fromDate(new Date(formData.startDate));
-      const endDate = Timestamp.fromDate(new Date(formData.endDate));
-
-      if (editingTournament) {
-        // Update existing tournament
-        await firebaseService.updateTournament(editingTournament.id, {
-          name: formData.name,
-          city: formData.city,
-          state: formData.state,
-          startDate,
-          endDate,
-          updatedAt: Timestamp.now(),
-        });
-        Alert.alert('Success', 'Tournament updated successfully');
+      let date: Date;
+      if (timestamp && typeof timestamp.toDate === 'function') {
+        // Firestore Timestamp
+        date = timestamp.toDate();
+      } else if (timestamp instanceof Date) {
+        // Already a Date object
+        date = timestamp;
+      } else if (timestamp && typeof timestamp === 'object' && timestamp.seconds) {
+        // Timestamp-like object with seconds
+        date = new Date(timestamp.seconds * 1000);
+      } else if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+        // String or number timestamp
+        date = new Date(timestamp);
       } else {
-        // Create new tournament
-        await firebaseService.createTournament({
-          name: formData.name,
-          city: formData.city,
-          state: formData.state,
-          startDate,
-          endDate,
-          status: TournamentStatus.UPCOMING,
-          createdBy: userProfile?.id || '',
-          createdAt: Timestamp.now(),
-        });
-        Alert.alert('Success', 'Tournament created successfully');
+        throw new Error('Invalid timestamp format');
       }
-
-      setShowCreateDialog(false);
-      loadTournaments();
+      
+      return format(date, 'MMM dd, yyyy');
     } catch (error) {
-      console.error('Error saving tournament:', error);
-      Alert.alert('Error', 'Failed to save tournament');
+      console.error('Error formatting date:', error, timestamp);
+      return 'Date unavailable';
     }
   };
 
-  const handleDeleteTournament = (tournament: Tournament) => {
-    Alert.alert(
-      'Delete Tournament',
-      `Are you sure you want to delete "${tournament.name}"? This will also delete all related divisions and games.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await firebaseService.deleteTournamentWithRelatedData(tournament.id);
-              Alert.alert('Success', 'Tournament deleted successfully');
-              loadTournaments();
-            } catch (error) {
-              console.error('Error deleting tournament:', error);
-              Alert.alert('Error', 'Failed to delete tournament');
-            }
-          },
-        },
-      ]
-    );
+  const getStatusLabel = (status: TournamentStatus) => {
+    switch (status) {
+      case TournamentStatus.ACTIVE:
+        return 'LIVE';
+      case TournamentStatus.UPCOMING:
+        return 'UPCOMING';
+      case TournamentStatus.COMPLETED:
+        return 'COMPLETED';
+      default:
+        return String(status).toUpperCase();
+    }
   };
 
-  // If not admin, show access denied
-  if (!isAdmin) {
+  // If not admin or scorekeeper, show access denied
+  if (!hasAccess) {
     return (
       <View style={styles.accessDeniedContainer}>
         <Text variant="headlineMedium" style={styles.accessDeniedTitle}>
@@ -177,139 +120,84 @@ const AdminPanelScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
+        {/* Header Section */}
         <View style={styles.header}>
           <Text variant="headlineMedium" style={styles.headerTitle}>
-            Tournament Management
+            {isAdmin ? 'Admin Panel' : 'Scorekeeper Panel'}
           </Text>
           <Text variant="bodyMedium" style={styles.headerSubtitle}>
-            Manage tournaments, divisions, and games
+            {isAdmin ? 'Manage tournaments and games here' : 'Update game scores and details'}
           </Text>
-        </View>
-
-        <View style={styles.quickActions}>
-          <Button
-            title="Bulk Import"
-            mode="contained-tonal"
-            onPress={() => navigation.navigate('BulkImport')}
-          />
         </View>
 
         {tournaments.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Text variant="titleLarge">No Tournaments</Text>
+            <Ionicons name="basketball-outline" size={64} color="#D1D5DB" />
+            <Text variant="titleLarge" style={styles.emptyTitle}>No Tournaments</Text>
             <Text variant="bodyMedium" style={styles.emptyText}>
-              Create your first tournament to get started
+              No tournaments available
             </Text>
           </View>
         ) : (
-          tournaments.map((tournament) => (
-            <Card key={tournament.id} style={styles.tournamentCard}>
-              <Card.Content>
-                <Text variant="titleLarge">{tournament.name}</Text>
-                <Text variant="bodyMedium" style={styles.tournamentLocation}>
-                  {tournament.city}, {tournament.state}
-                </Text>
-                <Text variant="bodySmall" style={styles.tournamentDates}>
-                  {tournament.startDate.toDate().toLocaleDateString()} -{' '}
-                  {tournament.endDate.toDate().toLocaleDateString()}
-                </Text>
-                <Text variant="bodySmall" style={styles.tournamentStatus}>
-                  Status: {tournament.status}
-                </Text>
-              </Card.Content>
-              <Card.Actions>
-                <Button
-                  title="Manage"
-                  mode="contained"
+          tournaments.map((tournament) => {
+            const displayStatus = getTournamentDisplayStatus(tournament);
+            
+            return (
+              <View key={tournament.id} style={styles.tournamentCardContainer}>
+                <TouchableOpacity 
                   onPress={() => navigation.navigate('ManageTournament', { tournamentId: tournament.id })}
-                />
-                <Button
-                  title="Edit"
-                  mode="outlined"
-                  onPress={() => handleEditTournament(tournament)}
-                />
-                <Button
-                  title="Delete"
-                  mode="outlined"
-                  onPress={() => handleDeleteTournament(tournament)}
-                />
-              </Card.Actions>
-            </Card>
-          ))
+                  activeOpacity={0.7}
+                  style={styles.touchable}
+                >
+                  <View style={styles.card}>
+                    {/* Tournament Image */}
+                    <Image
+                      source={{ uri: tournament.imageUrl || DEFAULT_TOURNAMENT_IMAGE }}
+                      style={styles.image}
+                      resizeMode="cover"
+                    />
+                    
+                    {/* Content */}
+                    <View style={styles.content}>
+                      {/* Status Text */}
+                      <Text style={styles.statusText}>
+                        {getStatusLabel(displayStatus)}
+                      </Text>
+
+                      {/* Tournament Name */}
+                      <Text style={styles.title} numberOfLines={2}>
+                        {tournament.name}
+                      </Text>
+                      
+                      {/* Location */}
+                      <Text style={styles.location} numberOfLines={1}>
+                        {tournament.city}, {tournament.state}
+                      </Text>
+                      
+                      {/* Dates */}
+                      <Text style={styles.dates}>
+                        {formatDate(tournament.startDate)} - {formatDate(tournament.endDate)}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Edit Button - Only for Admins */}
+                {isAdmin && (
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => navigation.navigate('EditTournament', { tournamentId: tournament.id })}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="pencil" size={20} color="#000000" />
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          })
         )}
       </ScrollView>
-
-      <Portal>
-        <Dialog
-          visible={showCreateDialog}
-          onDismiss={() => setShowCreateDialog(false)}
-          style={styles.dialog}
-        >
-          <Dialog.Title>
-            {editingTournament ? 'Edit Tournament' : 'Create Tournament'}
-          </Dialog.Title>
-          <Dialog.ScrollArea>
-            <ScrollView>
-              <TextInput
-                label="Tournament Name"
-                value={formData.name}
-                onChangeText={(text) => setFormData({ ...formData, name: text })}
-                mode="outlined"
-                style={styles.input}
-              />
-              <TextInput
-                label="City"
-                value={formData.city}
-                onChangeText={(text) => setFormData({ ...formData, city: text })}
-                mode="outlined"
-                style={styles.input}
-              />
-              <TextInput
-                label="State"
-                value={formData.state}
-                onChangeText={(text) => setFormData({ ...formData, state: text })}
-                mode="outlined"
-                style={styles.input}
-              />
-              <TextInput
-                label="Start Date (YYYY-MM-DD)"
-                value={formData.startDate}
-                onChangeText={(text) => setFormData({ ...formData, startDate: text })}
-                mode="outlined"
-                style={styles.input}
-                placeholder="2024-01-01"
-              />
-              <TextInput
-                label="End Date (YYYY-MM-DD)"
-                value={formData.endDate}
-                onChangeText={(text) => setFormData({ ...formData, endDate: text })}
-                mode="outlined"
-                style={styles.input}
-                placeholder="2024-01-07"
-              />
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button
-              title="Cancel"
-              mode="text"
-              onPress={() => setShowCreateDialog(false)}
-            />
-            <Button
-              title={editingTournament ? 'Update' : 'Create'}
-              mode="contained"
-              onPress={handleSaveTournament}
-            />
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={handleCreateTournament}
-        label="New Tournament"
-      />
     </View>
   );
 };
@@ -355,54 +243,94 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: '#fff',
     marginBottom: 8,
+    fontWeight: '600',
   },
   headerSubtitle: {
     color: '#F3F4F6',
-  },
-  quickActions: {
-    padding: 16,
-    paddingBottom: 8,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 40,
+    marginTop: 60,
+  },
+  emptyTitle: {
+    marginTop: 16,
+    marginBottom: 8,
   },
   emptyText: {
     marginTop: 8,
     color: '#6B7280',
     textAlign: 'center',
   },
-  tournamentCard: {
-    margin: 16,
-    marginBottom: 8,
+  tournamentCardContainer: {
+    position: 'relative',
+    marginHorizontal: 16,
+    marginVertical: 8,
   },
-  tournamentLocation: {
-    marginTop: 8,
+  touchable: {
+    borderRadius: 12,
+  },
+  card: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  image: {
+    width: '100%',
+    height: 180,
+    backgroundColor: '#F3F4F6',
+  },
+  content: {
+    padding: 16,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 8,
     color: '#6B7280',
   },
-  tournamentDates: {
-    marginTop: 4,
+  title: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+    lineHeight: 24,
+    color: '#000000',
+  },
+  location: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: '#6B7280',
+  },
+  dates: {
+    fontSize: 13,
     color: '#9CA3AF',
   },
-  tournamentStatus: {
-    marginTop: 4,
-    color: '#000000',
-    textTransform: 'capitalize',
-  },
-  dialog: {
-    maxHeight: '80%',
-  },
-  input: {
-    marginBottom: 12,
-  },
-  fab: {
+  editButton: {
     position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#000000',
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
   },
 });
 

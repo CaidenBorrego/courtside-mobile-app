@@ -1,3 +1,7 @@
+// NOTIFICATIONS TEMPORARILY DISABLED
+// TODO: Re-enable notifications in future release
+
+/*
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
@@ -6,7 +10,7 @@ import Constants from 'expo-constants';
 /**
  * NotificationService handles all notification-related operations
  * including permission requests, FCM token registration, and notification scheduling
- */
+ *\/
 class NotificationService {
   private static instance: NotificationService;
   private notificationListener: Notifications.Subscription | null = null;
@@ -27,7 +31,7 @@ class NotificationService {
 
   /**
    * Get singleton instance of NotificationService
-   */
+   *\/
   public static getInstance(): NotificationService {
     if (!NotificationService.instance) {
       NotificationService.instance = new NotificationService();
@@ -38,7 +42,7 @@ class NotificationService {
   /**
    * Request notification permissions from the user
    * @returns Promise<boolean> - true if permissions granted, false otherwise
-   */
+   *\/
   async requestPermissions(): Promise<boolean> {
     try {
       if (!Device.isDevice) {
@@ -69,7 +73,7 @@ class NotificationService {
   /**
    * Register device for push notifications and get FCM token
    * @returns Promise<string | null> - FCM token or null if registration failed
-   */
+   *\/
   async registerForPushNotifications(): Promise<string | null> {
     try {
       if (!Device.isDevice) {
@@ -135,7 +139,7 @@ class NotificationService {
    * @param trigger - When to trigger the notification (Date or seconds from now)
    * @param data - Additional data to include with notification
    * @returns Promise<string> - Notification identifier
-   */
+   *\/
   async scheduleLocalNotification(
     title: string,
     body: string,
@@ -174,7 +178,7 @@ class NotificationService {
    * @param startTime - Game start time
    * @param minutesBefore - How many minutes before game to send notification
    * @returns Promise<string> - Notification identifier
-   */
+   *\/
   async scheduleGameStartNotification(
     gameId: string,
     teamA: string,
@@ -210,7 +214,7 @@ class NotificationService {
    * @param scoreA - First team score
    * @param scoreB - Second team score
    * @returns Promise<string> - Notification identifier
-   */
+   *\/
   async sendGameEndNotification(
     gameId: string,
     teamA: string,
@@ -240,7 +244,7 @@ class NotificationService {
    * @param toRound - Round the team is advancing to
    * @param bracketName - Name of the bracket
    * @returns Promise<string> - Notification identifier
-   */
+   *\/
   async sendTeamAdvancementNotification(
     teamName: string,
     fromRound: string,
@@ -267,7 +271,7 @@ class NotificationService {
    * @param poolCount - Number of pools completed
    * @param bracketCount - Number of brackets seeded
    * @returns Promise<string> - Notification identifier
-   */
+   *\/
   async sendPoolCompletionNotification(
     divisionName: string,
     poolCount: number,
@@ -289,7 +293,7 @@ class NotificationService {
   /**
    * Cancel a scheduled notification
    * @param identifier - Notification identifier to cancel
-   */
+   *\/
   async cancelNotification(identifier: string): Promise<void> {
     try {
       await Notifications.cancelScheduledNotificationAsync(identifier);
@@ -301,7 +305,7 @@ class NotificationService {
 
   /**
    * Cancel all scheduled notifications
-   */
+   *\/
   async cancelAllNotifications(): Promise<void> {
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
@@ -314,7 +318,7 @@ class NotificationService {
   /**
    * Get all scheduled notifications
    * @returns Promise<Notifications.NotificationRequest[]>
-   */
+   *\/
   async getAllScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
     try {
       return await Notifications.getAllScheduledNotificationsAsync();
@@ -328,7 +332,7 @@ class NotificationService {
    * Set up notification listeners
    * @param onNotificationReceived - Callback when notification is received
    * @param onNotificationResponse - Callback when user interacts with notification
-   */
+   *\/
   setupNotificationListeners(
     onNotificationReceived?: (notification: Notifications.Notification) => void,
     onNotificationResponse?: (response: Notifications.NotificationResponse) => void
@@ -359,7 +363,7 @@ class NotificationService {
 
   /**
    * Remove notification listeners
-   */
+   *\/
   removeNotificationListeners(): void {
     if (this.notificationListener) {
       this.notificationListener.remove();
@@ -374,7 +378,7 @@ class NotificationService {
   /**
    * Get notification badge count
    * @returns Promise<number>
-   */
+   *\/
   async getBadgeCount(): Promise<number> {
     try {
       return await Notifications.getBadgeCountAsync();
@@ -387,7 +391,7 @@ class NotificationService {
   /**
    * Set notification badge count
    * @param count - Badge count to set
-   */
+   *\/
   async setBadgeCount(count: number): Promise<void> {
     try {
       await Notifications.setBadgeCountAsync(count);
@@ -398,10 +402,18 @@ class NotificationService {
 
   /**
    * Clear notification badge
-   */
+   *\/
   async clearBadge(): Promise<void> {
     await this.setBadgeCount(0);
   }
 }
 
 export default NotificationService;
+*/
+
+// Stub export to prevent import errors
+export default class NotificationService {
+  static getInstance() {
+    return new NotificationService();
+  }
+}

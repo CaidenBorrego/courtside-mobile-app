@@ -44,12 +44,12 @@
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
+        "_DISABLED_POST_NOTIFICATIONS",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS",
+        "_DISABLED_POST_NOTIFICATIONS",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
       ],
@@ -77,16 +77,17 @@
           }
         }
       ],
-      "expo-web-browser",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
-          "sounds": [],
-          "mode": "production"
-        }
-      ]
+      "expo-web-browser"
+      // NOTIFICATIONS TEMPORARILY DISABLED
+      // [
+      //   "expo-notifications",
+      //   {
+      //     "icon": "./assets/images/icon.png",
+      //     "color": "#ffffff",
+      //     "sounds": [],
+      //     "mode": "production"
+      //   }
+      // ]
     ],
     "experiments": {
       "typedRoutes": true,

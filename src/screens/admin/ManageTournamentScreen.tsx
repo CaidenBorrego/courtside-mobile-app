@@ -5,30 +5,30 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  TouchableOpacity,
+  Image,
+  RefreshControl,
+  Keyboard,
 } from 'react-native';
 import {
   Text,
-  Card,
   FAB,
-  Portal,
   Dialog,
   TextInput,
   SegmentedButtons,
 } from 'react-native-paper';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { firebaseService } from '../../services/firebase';
 import {
   Tournament,
   Division,
   Game,
-  Gender,
   GameStatus,
   Location,
-  Pool,
-  Bracket,
-  TournamentFormat,
 } from '../../types';
 import { Timestamp } from 'firebase/firestore';
+import { format } from 'date-fns';
 import Button from '../../components/common/Button';
 
 type ManageTournamentScreenRouteProp = RouteProp<
@@ -45,35 +45,21 @@ const ManageTournamentScreen: React.FC = () => {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [brackets, setBrackets] = useState<Bracket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'divisions' | 'games' | 'structure'>('divisions');
-  const [selectedDivisionId, setSelectedDivisionId] = useState<string | null>(null);
-
-  // Division dialog state
-  const [showDivisionDialog, setShowDivisionDialog] = useState(false);
-  const [editingDivision, setEditingDivision] = useState<Division | null>(null);
-  const [divisionForm, setDivisionForm] = useState({
-    name: '',
-    ageGroup: '',
-    gender: Gender.MIXED,
-    skillLevel: '',
-    format: TournamentFormat.HYBRID,
-  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Game dialog state
   const [showGameDialog, setShowGameDialog] = useState(false);
-  const [editingGame, setEditingGame] = useState<Game | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [gameForm, setGameForm] = useState({
     divisionId: '',
     teamA: '',
     teamB: '',
-    scoreA: '0',
-    scoreB: '0',
-    startTime: '',
-    locationId: '',
-    status: GameStatus.SCHEDULED,
+    startTime: new Date(),
+    court: '',
+    gameLabel: '',
   });
 
   useEffect(() => {
@@ -93,11 +79,6 @@ const ManageTournamentScreen: React.FC = () => {
       setDivisions(divisionsData);
       setGames(gamesData);
       setLocations(locationsData);
-
-      // Set default selected division if available
-      if (divisionsData.length > 0 && !selectedDivisionId) {
-        setSelectedDivisionId(divisionsData[0].id);
-      }
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load tournament data');
@@ -106,212 +87,89 @@ const ManageTournamentScreen: React.FC = () => {
     }
   };
 
-  const loadStructureData = async (divisionId: string) => {
+  const onRefresh = async () => {
     try {
-      const [poolsData, bracketsData] = await Promise.all([
-        firebaseService.getPoolsByDivision(divisionId),
-        firebaseService.getBracketsByDivision(divisionId),
+      setRefreshing(true);
+      const [tournamentData, divisionsData, gamesData, locationsData] = await Promise.all([
+        firebaseService.getTournament(tournamentId),
+        firebaseService.getDivisionsByTournament(tournamentId),
+        firebaseService.getGamesByTournament(tournamentId),
+        firebaseService.getLocations(),
       ]);
-      setPools(poolsData);
-      setBrackets(bracketsData);
+      setTournament(tournamentData);
+      setDivisions(divisionsData);
+      setGames(gamesData);
+      setLocations(locationsData);
     } catch (error) {
-      console.error('Error loading structure data:', error);
-      Alert.alert('Error', 'Failed to load pools and brackets');
+      console.error('Error refreshing data:', error);
+      Alert.alert('Error', 'Failed to refresh tournament data');
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    if (activeTab === 'structure' && selectedDivisionId) {
-      loadStructureData(selectedDivisionId);
-    }
-  }, [activeTab, selectedDivisionId]);
-
-  // Division handlers
-  const handleCreateDivision = () => {
-    setEditingDivision(null);
-    setDivisionForm({
-      name: '',
-      ageGroup: '',
-      gender: Gender.MIXED,
-      skillLevel: '',
-      format: TournamentFormat.HYBRID,
-    });
-    setShowDivisionDialog(true);
-  };
-
-  const handleEditDivision = (division: Division) => {
-    setEditingDivision(division);
-    setDivisionForm({
-      name: division.name,
-      ageGroup: division.ageGroup,
-      gender: division.gender,
-      skillLevel: division.skillLevel,
-      format: division.format || TournamentFormat.HYBRID,
-    });
-    setShowDivisionDialog(true);
-  };
-
-  const handleSaveDivision = async () => {
-    if (!divisionForm.name || !divisionForm.ageGroup || !divisionForm.skillLevel) {
-      Alert.alert('Validation Error', 'Please fill in all fields');
-      return;
-    }
-
-    try {
-      if (editingDivision) {
-        await firebaseService.updateDivision(editingDivision.id, {
-          name: divisionForm.name,
-          ageGroup: divisionForm.ageGroup,
-          gender: divisionForm.gender,
-          skillLevel: divisionForm.skillLevel,
-          format: divisionForm.format,
-          updatedAt: Timestamp.now(),
-        });
-        Alert.alert('Success', 'Division updated successfully');
-      } else {
-        await firebaseService.createDivision({
-          tournamentId,
-          name: divisionForm.name,
-          ageGroup: divisionForm.ageGroup,
-          gender: divisionForm.gender,
-          skillLevel: divisionForm.skillLevel,
-          format: divisionForm.format,
-          createdAt: Timestamp.now(),
-        });
-        Alert.alert('Success', 'Division created successfully');
-      }
-      setShowDivisionDialog(false);
-      loadData();
-    } catch (error) {
-      console.error('Error saving division:', error);
-      Alert.alert('Error', 'Failed to save division');
-    }
-  };
-
-  const handleDeleteDivision = (division: Division) => {
-    Alert.alert(
-      'Delete Division',
-      `Are you sure you want to delete "${division.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await firebaseService.deleteDivision(division.id);
-              Alert.alert('Success', 'Division deleted successfully');
-              loadData();
-            } catch (error) {
-              console.error('Error deleting division:', error);
-              Alert.alert('Error', 'Failed to delete division');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  // Game handlers
   const handleCreateGame = () => {
-    setEditingGame(null);
+    const now = new Date();
+    
     setGameForm({
       divisionId: divisions.length > 0 ? divisions[0].id : '',
       teamA: '',
       teamB: '',
-      scoreA: '0',
-      scoreB: '0',
-      startTime: '',
-      locationId: locations.length > 0 ? locations[0].id : '',
-      status: GameStatus.SCHEDULED,
+      startTime: now,
+      court: '',
+      gameLabel: '',
     });
     setShowGameDialog(true);
   };
 
   const handleEditGame = (game: Game) => {
-    setEditingGame(game);
-    setGameForm({
-      divisionId: game.divisionId,
-      teamA: game.teamA,
-      teamB: game.teamB,
-      scoreA: game.scoreA.toString(),
-      scoreB: game.scoreB.toString(),
-      startTime: game.startTime.toDate().toISOString().slice(0, 16),
-      locationId: game.locationId,
-      status: game.status,
-    });
-    setShowGameDialog(true);
+    (navigation as any).navigate('EditGame', { gameId: game.id });
   };
 
   const handleSaveGame = async () => {
-    if (!gameForm.divisionId || !gameForm.teamA || !gameForm.teamB || !gameForm.startTime || !gameForm.locationId) {
+    if (!gameForm.divisionId || !gameForm.teamA || !gameForm.teamB || !gameForm.startTime) {
       Alert.alert('Validation Error', 'Please fill in all required fields');
       return;
     }
 
     try {
-      const startTime = Timestamp.fromDate(new Date(gameForm.startTime));
-      const scoreA = parseInt(gameForm.scoreA) || 0;
-      const scoreB = parseInt(gameForm.scoreB) || 0;
-
-      if (editingGame) {
-        await firebaseService.updateGame(editingGame.id, {
-          divisionId: gameForm.divisionId,
-          teamA: gameForm.teamA,
-          teamB: gameForm.teamB,
-          scoreA,
-          scoreB,
-          startTime,
-          locationId: gameForm.locationId,
-          status: gameForm.status,
-          updatedAt: Timestamp.now(),
-        });
-        Alert.alert('Success', 'Game updated successfully');
-      } else {
-        await firebaseService.createGame({
-          tournamentId,
-          divisionId: gameForm.divisionId,
-          teamA: gameForm.teamA,
-          teamB: gameForm.teamB,
-          scoreA,
-          scoreB,
-          startTime,
-          locationId: gameForm.locationId,
-          status: gameForm.status,
+      // Use the first location or create a default one if none exist
+      let locationId = locations.length > 0 ? locations[0].id : '';
+      
+      if (!locationId) {
+        const defaultLocationId = await firebaseService.createLocation({
+          name: 'Default Location',
+          address: '',
+          city: '',
+          state: '',
           createdAt: Timestamp.now(),
         });
-        Alert.alert('Success', 'Game created successfully');
+        locationId = defaultLocationId;
       }
+
+      const startTime = Timestamp.fromDate(gameForm.startTime);
+
+      await firebaseService.createGame({
+        tournamentId,
+        divisionId: gameForm.divisionId,
+        teamA: gameForm.teamA.trim(),
+        teamB: gameForm.teamB.trim(),
+        scoreA: 0,
+        scoreB: 0,
+        startTime,
+        locationId,
+        court: gameForm.court.trim() || undefined,
+        gameLabel: gameForm.gameLabel.trim() || undefined,
+        status: GameStatus.SCHEDULED,
+        createdAt: Timestamp.now(),
+      });
+      Alert.alert('Success', 'Game created successfully');
       setShowGameDialog(false);
-      loadData();
+      onRefresh();
     } catch (error) {
       console.error('Error saving game:', error);
       Alert.alert('Error', 'Failed to save game');
     }
-  };
-
-  const handleDeleteGame = (game: Game) => {
-    Alert.alert(
-      'Delete Game',
-      `Are you sure you want to delete this game?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await firebaseService.deleteGame(game.id);
-              Alert.alert('Success', 'Game deleted successfully');
-              loadData();
-            } catch (error) {
-              console.error('Error deleting game:', error);
-              Alert.alert('Error', 'Failed to delete game');
-            }
-          },
-        },
-      ]
-    );
   };
 
   if (loading) {
@@ -323,419 +181,447 @@ const ManageTournamentScreen: React.FC = () => {
     );
   }
 
+  if (divisions.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text variant="headlineMedium">No Divisions</Text>
+        <Text variant="bodyMedium" style={styles.emptyText}>
+          This tournament needs divisions before you can create games.
+        </Text>
+        <Text variant="bodySmall" style={styles.emptyHint}>
+          Contact your administrator to set up divisions.
+        </Text>
+      </View>
+    );
+  }
+
+  // Filter games based on search query
+  const filteredGames = games.filter((game) => {
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase();
+    const teamAMatch = game.teamA.toLowerCase().includes(query);
+    const teamBMatch = game.teamB.toLowerCase().includes(query);
+    const labelMatch = game.gameLabel?.toLowerCase().includes(query);
+    
+    return teamAMatch || teamBMatch || labelMatch;
+  });
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.pageHeader}>
         <Text variant="headlineSmall" style={styles.headerTitle}>
           {tournament?.name}
         </Text>
         <Text variant="bodyMedium" style={styles.headerSubtitle}>
-          Manage divisions and games
+          Manage games
         </Text>
       </View>
 
-      <SegmentedButtons
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as 'divisions' | 'games' | 'structure')}
-        buttons={[
-          { value: 'divisions', label: 'Divisions' },
-          { value: 'games', label: 'Games' },
-          { value: 'structure', label: 'Structure' },
-        ]}
-        style={styles.segmentedButtons}
-      />
+      <View style={styles.searchContainer}>
+        <TextInput
+          mode="outlined"
+          placeholder="Search by team name or game label..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          left={<TextInput.Icon icon="magnify" />}
+          right={
+            searchQuery ? (
+              <TextInput.Icon 
+                icon="close" 
+                onPress={() => setSearchQuery('')}
+              />
+            ) : null
+          }
+          style={styles.searchInput}
+          outlineStyle={styles.searchOutline}
+        />
+        {searchQuery && (
+          <Text variant="bodySmall" style={styles.searchResults}>
+            {filteredGames.length} {filteredGames.length === 1 ? 'game' : 'games'} found
+          </Text>
+        )}
+      </View>
 
-      <ScrollView style={styles.scrollView}>
-        {activeTab === 'divisions' ? (
-          <>
-            {divisions.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text variant="titleMedium">No Divisions</Text>
-                <Text variant="bodyMedium" style={styles.emptyText}>
-                  Create divisions to organize games
-                </Text>
-              </View>
-            ) : (
-              divisions.map((division) => (
-                <Card key={division.id} style={styles.card}>
-                  <Card.Content>
-                    <Text variant="titleMedium">{division.name}</Text>
-                    <Text variant="bodySmall" style={styles.cardDetail}>
-                      Age: {division.ageGroup} | Gender: {division.gender}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.cardDetail}>
-                      Skill: {division.skillLevel}
-                    </Text>
-                  </Card.Content>
-                  <Card.Actions>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#000000']}
+            tintColor="#000000"
+          />
+        }
+      >
+        {filteredGames.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text variant="titleMedium">
+              {searchQuery ? 'No Matching Games' : 'No Games'}
+            </Text>
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              {searchQuery 
+                ? 'Try a different search term' 
+                : 'Create games for this tournament'}
+            </Text>
+          </View>
+        ) : (
+          filteredGames.map((game) => {
+            const division = divisions.find(d => d.id === game.divisionId);
+            const location = locations.find(l => l.id === game.locationId);
+            
+            const formatTime = (timestamp: any) => {
+              try {
+                const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+                return format(date, 'MMM dd, h:mm a');
+              } catch {
+                return 'Time TBD';
+              }
+            };
+
+            const getStatusLabel = (status: GameStatus) => {
+              switch (status) {
+                case GameStatus.IN_PROGRESS:
+                  return 'LIVE';
+                case GameStatus.SCHEDULED:
+                  return 'SCHEDULED';
+                case GameStatus.COMPLETED:
+                  return 'FINAL';
+                case GameStatus.CANCELLED:
+                  return 'CANCELLED';
+                default:
+                  return String(status).toUpperCase();
+              }
+            };
+
+            const renderScore = () => {
+              if (game.status === GameStatus.SCHEDULED) {
+                return (
+                  <View style={styles.scoreContainer}>
+                    <Text style={styles.vsText}>VS</Text>
+                  </View>
+                );
+              }
+
+              const teamAWon = game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB;
+              const teamBWon = game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA;
+
+              return (
+                <View style={styles.scoreContainer}>
+                  <Text style={[styles.score, teamAWon && styles.winningScore]}>
+                    {game.scoreA}
+                  </Text>
+                  <Text style={styles.scoreSeparator}> - </Text>
+                  <Text style={[styles.score, teamBWon && styles.winningScore]}>
+                    {game.scoreB}
+                  </Text>
+                </View>
+              );
+            };
+
+            return (
+              <View key={game.id} style={styles.gameCardContainer}>
+                <View style={styles.card}>
+                  {/* Game Label */}
+                  {game.gameLabel && (
+                    <View style={styles.gameLabelContainer}>
+                      <Text style={styles.gameLabelText}>
+                        {game.gameLabel}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Header */}
+                  <View style={styles.header}>
+                    <View style={styles.headerLeft}>
+                      <Text style={styles.timeText}>
+                        {formatTime(game.startTime)}
+                      </Text>
+                      {game.court && (
+                        <>
+                          <Text style={styles.separator}>•</Text>
+                          <Text style={styles.courtText}>
+                            {game.court}
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusText}>
+                        {getStatusLabel(game.status)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Teams */}
+                  <View style={styles.teamsContainer}>
+                    {/* Team A */}
+                    <View style={styles.teamSection}>
+                      <Image
+                        source={{ uri: game.teamAImageUrl || 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=200&h=200&fit=crop' }}
+                        style={styles.teamImage}
+                        resizeMode="cover"
+                      />
+                      <Text 
+                        style={[
+                          styles.teamName,
+                          game.status === GameStatus.COMPLETED && game.scoreA > game.scoreB && styles.winnerText
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {game.teamA}
+                      </Text>
+                    </View>
+
+                    {/* Score/VS */}
+                    {renderScore()}
+
+                    {/* Team B */}
+                    <View style={styles.teamSection}>
+                      <Image
+                        source={{ uri: game.teamBImageUrl || 'https://images.unsplash.com/photo-1519861531473-9200262188bf?w=200&h=200&fit=crop' }}
+                        style={styles.teamImage}
+                        resizeMode="cover"
+                      />
+                      <Text 
+                        style={[
+                          styles.teamName,
+                          game.status === GameStatus.COMPLETED && game.scoreB > game.scoreA && styles.winnerText
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {game.teamB}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Additional Info */}
+                  {(division || location) && (
+                    <View style={styles.additionalInfo}>
+                      {division && (
+                        <Text style={styles.infoText}>
+                          {division.name}
+                        </Text>
+                      )}
+                      {location && (
+                        <Text style={styles.infoText}>
+                          {location.name}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
+                  {/* Edit Button */}
+                  <View style={styles.editButtonContainer}>
                     <Button
-                      title="Edit"
-                      mode="outlined"
-                      onPress={() => handleEditDivision(division)}
-                    />
-                    <Button
-                      title="Delete"
-                      mode="outlined"
-                      onPress={() => handleDeleteDivision(division)}
-                    />
-                  </Card.Actions>
-                </Card>
-              ))
-            )}
-          </>
-        ) : activeTab === 'games' ? (
-          <>
-            {games.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text variant="titleMedium">No Games</Text>
-                <Text variant="bodyMedium" style={styles.emptyText}>
-                  Create games for this tournament
-                </Text>
-              </View>
-            ) : (
-              games.map((game) => (
-                <Card key={game.id} style={styles.card}>
-                  <Card.Content>
-                    <Text variant="titleMedium">
-                      {game.teamA} vs {game.teamB}
-                    </Text>
-                    <Text variant="bodyMedium" style={styles.cardDetail}>
-                      Score: {game.scoreA} - {game.scoreB}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.cardDetail}>
-                      {game.startTime.toDate().toLocaleString()}
-                    </Text>
-                    <Text variant="bodySmall" style={styles.cardDetail}>
-                      Status: {game.status}
-                    </Text>
-                  </Card.Content>
-                  <Card.Actions>
-                    <Button
-                      title="Edit"
-                      mode="outlined"
+                      title="Edit Game"
+                      mode="contained"
                       onPress={() => handleEditGame(game)}
                     />
-                    <Button
-                      title="Delete"
-                      mode="outlined"
-                      onPress={() => handleDeleteGame(game)}
-                    />
-                  </Card.Actions>
-                </Card>
-              ))
-            )}
-          </>
-        ) : (
-          <>
-            {/* Structure Tab */}
-            {divisions.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Text variant="titleMedium">No Divisions</Text>
-                <Text variant="bodyMedium" style={styles.emptyText}>
-                  Create divisions first to configure tournament structure
-                </Text>
-              </View>
-            ) : (
-              <>
-                {/* Division Selector */}
-                <View style={styles.divisionSelector}>
-                  <Text variant="titleSmall" style={styles.selectorLabel}>
-                    Select Division:
-                  </Text>
-                  <SegmentedButtons
-                    value={selectedDivisionId || ''}
-                    onValueChange={(value) => setSelectedDivisionId(value)}
-                    buttons={divisions.map((division) => ({
-                      value: division.id,
-                      label: division.name,
-                    }))}
-                    style={styles.divisionButtons}
-                  />
+                  </View>
                 </View>
-
-                {selectedDivisionId && (() => {
-                  const selectedDivision = divisions.find(d => d.id === selectedDivisionId);
-                  const format = selectedDivision?.format || TournamentFormat.HYBRID;
-                  const showPools = format === TournamentFormat.POOL_ONLY || format === TournamentFormat.HYBRID;
-                  const showBrackets = format === TournamentFormat.BRACKET_ONLY || format === TournamentFormat.HYBRID;
-
-                  return (
-                    <>
-                      {/* Format Info */}
-                      <View style={styles.formatInfo}>
-                        <Text variant="bodyMedium" style={styles.formatLabel}>
-                          Format: {format === TournamentFormat.POOL_ONLY ? 'Pool Only' : 
-                                   format === TournamentFormat.BRACKET_ONLY ? 'Bracket Only' : 'Hybrid'}
-                        </Text>
-                        <Text variant="bodySmall" style={styles.formatDescription}>
-                          {format === TournamentFormat.POOL_ONLY && 
-                            'This division uses round-robin pools only'}
-                          {format === TournamentFormat.BRACKET_ONLY && 
-                            'This division uses single-elimination brackets only'}
-                          {format === TournamentFormat.HYBRID && 
-                            'This division uses pool play followed by elimination brackets'}
-                        </Text>
-                      </View>
-
-                      {/* Pools Section */}
-                      {showPools && (
-                        <View style={styles.structureSection}>
-                          <View style={styles.sectionHeader}>
-                            <Text variant="titleMedium" style={styles.sectionTitle}>
-                              Pools
-                            </Text>
-                            <Button
-                              title="Configure"
-                              mode="contained"
-                              onPress={() => {
-                                (navigation as any).navigate('PoolConfiguration', {
-                                  divisionId: selectedDivisionId,
-                                  tournamentId,
-                                });
-                              }}
-                            />
-                          </View>
-                          <Card style={styles.structureCard}>
-                            <Card.Content>
-                              {pools.length === 0 ? (
-                                <Text variant="bodyMedium" style={styles.emptyStructureText}>
-                                  No pools configured for this division
-                                </Text>
-                              ) : (
-                                <>
-                                  <Text variant="bodyMedium" style={styles.structureInfo}>
-                                    {pools.length} pool(s) configured
-                                  </Text>
-                                  {pools.map((pool) => (
-                                    <View key={pool.id} style={styles.structureItem}>
-                                      <Text variant="bodySmall">
-                                        • {pool.name} ({pool.teams.length} teams)
-                                      </Text>
-                                    </View>
-                                  ))}
-                                </>
-                              )}
-                            </Card.Content>
-                          </Card>
-                        </View>
-                      )}
-
-                      {/* Brackets Section */}
-                      {showBrackets && (
-                        <View style={styles.structureSection}>
-                          <View style={styles.sectionHeader}>
-                            <Text variant="titleMedium" style={styles.sectionTitle}>
-                              Brackets
-                            </Text>
-                            <Button
-                              title="Configure"
-                              mode="contained"
-                              onPress={() => {
-                                (navigation as any).navigate('BracketConfiguration', {
-                                  divisionId: selectedDivisionId,
-                                  tournamentId,
-                                });
-                              }}
-                            />
-                          </View>
-                          <Card style={styles.structureCard}>
-                            <Card.Content>
-                              {brackets.length === 0 ? (
-                                <Text variant="bodyMedium" style={styles.emptyStructureText}>
-                                  No brackets configured for this division
-                                </Text>
-                              ) : (
-                                <>
-                                  <Text variant="bodyMedium" style={styles.structureInfo}>
-                                    {brackets.length} bracket(s) configured
-                                  </Text>
-                                  {brackets.map((bracket) => (
-                                    <View key={bracket.id} style={styles.structureItem}>
-                                      <Text variant="bodySmall">
-                                        • {bracket.name} ({bracket.size} teams)
-                                      </Text>
-                                    </View>
-                                  ))}
-                                </>
-                              )}
-                            </Card.Content>
-                          </Card>
-                        </View>
-                      )}
-                    </>
-                  );
-                })()}
-              </>
-            )}
-          </>
+              </View>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* Division Dialog */}
-      <Portal>
-        <Dialog
-          visible={showDivisionDialog}
-          onDismiss={() => setShowDivisionDialog(false)}
-          style={styles.dialog}
-        >
-          <Dialog.Title>
-            {editingDivision ? 'Edit Division' : 'Create Division'}
-          </Dialog.Title>
-          <Dialog.ScrollArea>
+      <Dialog
+        visible={showGameDialog}
+        onDismiss={() => setShowGameDialog(false)}
+        style={styles.dialog}
+      >
+          <Dialog.Title style={styles.dialogTitle}>Create Game</Dialog.Title>
+          <Text variant="bodySmall" style={styles.dialogSubtitle}>
+            Create a basic game. Advanced settings like game advancements and dependencies can be configured after creation by editing the game.
+          </Text>
+          <Dialog.ScrollArea style={styles.dialogScrollArea}>
             <ScrollView>
               <TextInput
-                label="Division Name"
-                value={divisionForm.name}
-                onChangeText={(text) => setDivisionForm({ ...divisionForm, name: text })}
+                label="Game Label"
+                value={gameForm.gameLabel}
+                onChangeText={(text) => setGameForm({ ...gameForm, gameLabel: text })}
                 mode="outlined"
                 style={styles.input}
-              />
-              <TextInput
-                label="Age Group"
-                value={divisionForm.ageGroup}
-                onChangeText={(text) => setDivisionForm({ ...divisionForm, ageGroup: text })}
-                mode="outlined"
-                style={styles.input}
-                placeholder="e.g., U12, U14, Adult"
-              />
-              <TextInput
-                label="Skill Level"
-                value={divisionForm.skillLevel}
-                onChangeText={(text) => setDivisionForm({ ...divisionForm, skillLevel: text })}
-                mode="outlined"
-                style={styles.input}
-                placeholder="e.g., Beginner, Intermediate, Advanced"
+                placeholder="e.g., Pool A Game 1, Finals"
+                outlineColor="#E5E7EB"
+                activeOutlineColor="#000000"
               />
               <Text variant="bodyMedium" style={styles.inputLabel}>
-                Gender
+                Division *
               </Text>
               <SegmentedButtons
-                value={divisionForm.gender}
-                onValueChange={(value) =>
-                  setDivisionForm({ ...divisionForm, gender: value as Gender })
-                }
-                buttons={[
-                  { value: Gender.MALE, label: 'Male' },
-                  { value: Gender.FEMALE, label: 'Female' },
-                  { value: Gender.MIXED, label: 'Mixed' },
-                ]}
+                value={gameForm.divisionId}
+                onValueChange={(value) => setGameForm({ ...gameForm, divisionId: value })}
+                buttons={divisions.map((division) => ({
+                  value: division.id,
+                  label: division.name,
+                }))}
+                theme={{
+                  colors: {
+                    secondaryContainer: '#2563EB',
+                    onSecondaryContainer: '#FFFFFF',
+                    onSurface: '#000000',
+                    outline: '#D1D5DB',
+                  }
+                }}
                 style={styles.input}
               />
-              <Text variant="bodyMedium" style={styles.inputLabel}>
-                Tournament Format
-              </Text>
-              <SegmentedButtons
-                value={divisionForm.format}
-                onValueChange={(value) =>
-                  setDivisionForm({ ...divisionForm, format: value as TournamentFormat })
-                }
-                buttons={[
-                  { value: TournamentFormat.POOL_ONLY, label: 'Pool Only' },
-                  { value: TournamentFormat.BRACKET_ONLY, label: 'Bracket Only' },
-                  { value: TournamentFormat.HYBRID, label: 'Hybrid' },
-                ]}
-                style={styles.input}
-              />
-              <Text variant="bodySmall" style={styles.formatHint}>
-                {divisionForm.format === TournamentFormat.POOL_ONLY && 
-                  'Round-robin pools only, no elimination brackets'}
-                {divisionForm.format === TournamentFormat.BRACKET_ONLY && 
-                  'Single-elimination brackets only, no pool play'}
-                {divisionForm.format === TournamentFormat.HYBRID && 
-                  'Pool play followed by elimination brackets'}
-              </Text>
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button
-              title="Cancel"
-              mode="text"
-              onPress={() => setShowDivisionDialog(false)}
-            />
-            <Button
-              title={editingDivision ? 'Update' : 'Create'}
-              mode="contained"
-              onPress={handleSaveDivision}
-            />
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
-
-      {/* Game Dialog */}
-      <Portal>
-        <Dialog
-          visible={showGameDialog}
-          onDismiss={() => setShowGameDialog(false)}
-          style={styles.dialog}
-        >
-          <Dialog.Title>
-            {editingGame ? 'Edit Game' : 'Create Game'}
-          </Dialog.Title>
-          <Dialog.ScrollArea>
-            <ScrollView>
               <TextInput
-                label="Team A"
+                label="Team A *"
                 value={gameForm.teamA}
                 onChangeText={(text) => setGameForm({ ...gameForm, teamA: text })}
                 mode="outlined"
                 style={styles.input}
+                outlineColor="#E5E7EB"
+                activeOutlineColor="#000000"
               />
               <TextInput
-                label="Team B"
+                label="Team B *"
                 value={gameForm.teamB}
                 onChangeText={(text) => setGameForm({ ...gameForm, teamB: text })}
                 mode="outlined"
                 style={styles.input}
+                outlineColor="#E5E7EB"
+                activeOutlineColor="#000000"
               />
+              
+              <Text variant="bodyMedium" style={styles.inputLabel}>
+                Start Date & Time *
+              </Text>
+              <View style={styles.dateTimeContainer}>
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={styles.dateTimeButtonText}>
+                    📅 {format(gameForm.startTime, 'MMM dd, yyyy')}
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={styles.dateTimeButton}
+                  onPress={() => setShowTimePicker(true)}
+                >
+                  <Text style={styles.dateTimeButtonText}>
+                    🕐 {format(gameForm.startTime, 'h:mm a')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
               <TextInput
-                label="Score A"
-                value={gameForm.scoreA}
-                onChangeText={(text) => setGameForm({ ...gameForm, scoreA: text })}
-                mode="outlined"
-                keyboardType="numeric"
-                style={styles.input}
-              />
-              <TextInput
-                label="Score B"
-                value={gameForm.scoreB}
-                onChangeText={(text) => setGameForm({ ...gameForm, scoreB: text })}
-                mode="outlined"
-                keyboardType="numeric"
-                style={styles.input}
-              />
-              <TextInput
-                label="Start Time (YYYY-MM-DDTHH:MM)"
-                value={gameForm.startTime}
-                onChangeText={(text) => setGameForm({ ...gameForm, startTime: text })}
+                label="Court"
+                value={gameForm.court}
+                onChangeText={(text) => setGameForm({ ...gameForm, court: text })}
                 mode="outlined"
                 style={styles.input}
-                placeholder="2024-01-01T10:00"
+                placeholder="e.g., Court 1, Main Gym"
+                outlineColor="#E5E7EB"
+                activeOutlineColor="#000000"
               />
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={styles.dialogActions}>
             <Button
               title="Cancel"
               mode="text"
               onPress={() => setShowGameDialog(false)}
             />
             <Button
-              title={editingGame ? 'Update' : 'Create'}
+              title="Create"
               mode="contained"
               onPress={handleSaveGame}
             />
           </Dialog.Actions>
         </Dialog>
-      </Portal>
 
-      {activeTab !== 'structure' && (
-        <FAB
-          icon="plus"
-          style={styles.fab}
-          onPress={activeTab === 'divisions' ? handleCreateDivision : handleCreateGame}
-          label={activeTab === 'divisions' ? 'New Division' : 'New Game'}
-        />
+      {/* Date Picker Modal */}
+      {showDatePicker && (
+        <Dialog
+          visible={showDatePicker}
+          onDismiss={() => setShowDatePicker(false)}
+          style={styles.pickerDialog}
+        >
+          <Dialog.Title style={styles.pickerDialogTitle}>
+            Select Date
+          </Dialog.Title>
+          <Dialog.Content style={styles.pickerDialogContent}>
+            <DateTimePicker
+              value={gameForm.startTime}
+              mode="date"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setGameForm({ ...gameForm, startTime: selectedDate });
+                }
+              }}
+              textColor="#000000"
+              themeVariant="light"
+              style={styles.dateTimePicker}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              title="Cancel"
+              mode="text"
+              onPress={() => setShowDatePicker(false)}
+            />
+            <Button
+              title="Done"
+              mode="contained"
+              onPress={() => setShowDatePicker(false)}
+            />
+          </Dialog.Actions>
+        </Dialog>
       )}
+
+      {/* Time Picker Modal */}
+      {showTimePicker && (
+        <Dialog
+          visible={showTimePicker}
+          onDismiss={() => setShowTimePicker(false)}
+          style={styles.pickerDialog}
+        >
+          <Dialog.Title style={styles.pickerDialogTitle}>
+            Select Time
+          </Dialog.Title>
+          <Dialog.Content style={styles.pickerDialogContent}>
+            <DateTimePicker
+              value={gameForm.startTime}
+              mode="time"
+              display="spinner"
+              onChange={(event, selectedDate) => {
+                if (selectedDate) {
+                  setGameForm({ ...gameForm, startTime: selectedDate });
+                }
+              }}
+              textColor="#000000"
+              themeVariant="light"
+              style={styles.dateTimePicker}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button
+              title="Cancel"
+              mode="text"
+              onPress={() => setShowTimePicker(false)}
+            />
+            <Button
+              title="Done"
+              mode="contained"
+              onPress={() => setShowTimePicker(false)}
+            />
+          </Dialog.Actions>
+        </Dialog>
+      )}
+
+      <FAB
+        icon="plus"
+        style={styles.fab}
+        color="#FFFFFF"
+        onPress={handleCreateGame}
+        label="New Game"
+      />
     </View>
   );
 };
@@ -755,9 +641,34 @@ const styles = StyleSheet.create({
     marginTop: 16,
     color: '#6B7280',
   },
-  header: {
+  pageHeader: {
     padding: 16,
     backgroundColor: '#000000',
+  },
+  searchContainer: {
+    padding: 16,
+    paddingBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchInput: {
+    backgroundColor: '#FFFFFF',
+  },
+  searchOutline: {
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+  },
+  searchResults: {
+    marginTop: 8,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   headerTitle: {
     color: '#fff',
@@ -766,8 +677,36 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     color: '#F3F4F6',
   },
-  segmentedButtons: {
-    margin: 16,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  timeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  separator: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  courtText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: '#F3F4F6',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: '#000000',
   },
   scrollView: {
     flex: 1,
@@ -783,43 +722,166 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
-  card: {
-    margin: 16,
-    marginBottom: 8,
-  },
-  cardDetail: {
+  emptyHint: {
     marginTop: 4,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    fontSize: 12,
+  },
+  gameCardContainer: {
+    marginHorizontal: 16,
+    marginVertical: 8,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  gameLabelContainer: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  gameLabelText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#000000',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  teamsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  teamSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  teamImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginBottom: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  teamName: {
+    fontSize: 14,
+    fontWeight: '500',
+    textAlign: 'center',
+    color: '#000000',
+  },
+  winnerText: {
+    fontWeight: '700',
+  },
+  scoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  score: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#000000',
+  },
+  winningScore: {
+    fontWeight: '800',
+    fontSize: 26,
+  },
+  scoreSeparator: {
+    fontSize: 18,
+    fontWeight: '400',
     color: '#6B7280',
+  },
+  vsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 1,
+    color: '#6B7280',
+  },
+  additionalInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  editButtonContainer: {
+    marginTop: 12,
   },
   dialog: {
     maxHeight: '80%',
+    backgroundColor: '#FFFFFF',
+  },
+  dialogTitle: {
+    color: '#000000',
+    fontWeight: '600',
+    fontSize: 20,
+  },
+  dialogSubtitle: {
+    color: '#6B7280',
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    lineHeight: 20,
+  },
+  dialogScrollArea: {
+    paddingHorizontal: 24,
+  },
+  dialogActions: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   input: {
     marginBottom: 12,
   },
   inputLabel: {
     marginBottom: 8,
-    color: '#6B7280',
+    marginTop: 8,
+    color: '#000000',
+    fontWeight: '500',
   },
-  formatHint: {
-    marginTop: 4,
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: 12,
     marginBottom: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
   },
-  formatInfo: {
+  dateTimeButton: {
+    flex: 1,
     padding: 16,
-    backgroundColor: '#F3F4F6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
   },
-  formatLabel: {
+  dateTimeButtonText: {
+    fontSize: 16,
+    color: '#000000',
+    fontWeight: '500',
+  },
+  dateTimePicker: {
+    width: '100%',
+    height: 200,
+  },
+  pickerDialog: {
+    backgroundColor: '#FFFFFF',
+  },
+  pickerDialogTitle: {
+    color: '#000000',
     fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
   },
-  formatDescription: {
-    color: '#6B7280',
+  pickerDialogContent: {
+    paddingHorizontal: 0,
   },
   fab: {
     position: 'absolute',
@@ -827,49 +889,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#000000',
-  },
-  divisionSelector: {
-    padding: 16,
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  selectorLabel: {
-    marginBottom: 8,
-    color: '#374151',
-    fontWeight: '600',
-  },
-  divisionButtons: {
-    marginTop: 4,
-  },
-  structureSection: {
-    padding: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontWeight: '600',
-    color: '#111827',
-  },
-  structureCard: {
-    backgroundColor: '#FFFFFF',
-  },
-  emptyStructureText: {
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  structureInfo: {
-    marginBottom: 8,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  structureItem: {
-    marginTop: 4,
-    paddingLeft: 8,
   },
 });
 

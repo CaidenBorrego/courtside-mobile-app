@@ -302,8 +302,9 @@ export interface UserProfile extends FirestoreDocument {
   role: UserRole;
   followingTeams: string[];
   followingGames: string[];
-  notificationsEnabled: boolean;
-  fcmToken?: string;
+  // NOTIFICATIONS TEMPORARILY DISABLED
+  // notificationsEnabled: boolean;
+  // fcmToken?: string;
   lastActive: FirebaseTimestamp;
 }
 
@@ -316,6 +317,8 @@ export type RootStackParamList = {
   TeamDetail: { teamName: string; divisionId: string };
   ManageTournament: { tournamentId: string };
   BulkImport: undefined;
+  EditGame: { gameId: string };
+  EditTournament: { tournamentId: string };
 };
 
 export type AuthStackParamList = {

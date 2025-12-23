@@ -177,15 +177,16 @@ async function triggerAutomaticSeeding(divisionId: string): Promise<void> {
 
     console.log(`Successfully seeded ${format.bracketCount} bracket(s) from ${format.poolCount} pool(s)`);
 
+    // NOTIFICATIONS TEMPORARILY DISABLED
     // Send notification to admins about seeding completion
-    const notificationService = NotificationService.getInstance();
-    await notificationService.sendPoolCompletionNotification(
-      'Division',
-      format.poolCount,
-      format.bracketCount
-    );
+    // const notificationService = NotificationService.getInstance();
+    // await notificationService.sendPoolCompletionNotification(
+    //   'Division',
+    //   format.poolCount,
+    //   format.bracketCount
+    // );
 
-    console.log('Sent pool completion notification');
+    console.log('Pool completion notification disabled');
   } catch (error) {
     console.error('Error triggering automatic seeding:', error);
     // Don't throw - we don't want to break the game completion flow
@@ -214,16 +215,17 @@ async function sendAdvancementNotifications(teamName: string, game: Game): Promi
       return;
     }
 
+    // NOTIFICATIONS TEMPORARILY DISABLED
     // Send local notification for advancement
-    const notificationService = NotificationService.getInstance();
-    await notificationService.sendTeamAdvancementNotification(
-      teamName,
-      game.bracketRound,
-      nextRound,
-      bracket.name
-    );
+    // const notificationService = NotificationService.getInstance();
+    // await notificationService.sendTeamAdvancementNotification(
+    //   teamName,
+    //   game.bracketRound,
+    //   nextRound,
+    //   bracket.name
+    // );
 
-    console.log(`Sent advancement notification for ${teamName}`);
+    console.log(`Advancement notification disabled for ${teamName}`);
   } catch (error) {
     console.error('Error sending advancement notifications:', error);
   }

@@ -18,6 +18,11 @@ jest.mock('@react-navigation/native', () => ({
   useRoute: () => ({
     params: { gameId: 'game123' },
   }),
+  useNavigation: () => ({
+    navigate: jest.fn(),
+    goBack: jest.fn(),
+  }),
+  useFocusEffect: jest.fn(), // Add missing mock
 }));
 
 jest.spyOn(Alert, 'alert');
